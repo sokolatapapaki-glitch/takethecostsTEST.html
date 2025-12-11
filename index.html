@@ -1040,19 +1040,10 @@
 
     // ==================== FIREBASE FUNCTIONS ====================
     function checkFirebaseConfig() {
-      const firebaseConfig = firebase.app().options;
-      if (!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('AIzaSyBqP4kK1bq7JbQ4K9q7')) {
-        // Default demo credentials - show setup modal
-        setTimeout(() => {
-          firebaseSetupModal.style.display = 'flex';
-        }, 1000);
-        updateFirebaseStatus(false, "Ρυθμίστε Firebase πρώτα");
-      } else {
-        // Valid credentials
-        setupFirebaseListeners();
-        updateFirebaseStatus(true, "Συνδέθηκε στο Firebase");
-      }
-    }
+  // ΠΡΑΓΜΑΤΙΚΑ ΚΛΕΙΔΙΑ - ΣΥΝΔΕΘΕΙΤΕ ΚΑΤΕΥΘΕΙΑΝ
+  setupFirebaseListeners();
+  updateFirebaseStatus(true, "Συνδέθηκε στο Firebase");
+}
 
     function useWithoutFirebase() {
       firebaseSetupModal.style.display = 'none';
