@@ -1045,11 +1045,13 @@
   updateFirebaseStatus(true, "Συνδέθηκε στο Firebase");
 }
 
-    function useWithoutFirebase() {
-      firebaseSetupModal.style.display = 'none';
-      updateFirebaseStatus(false, "Λειτουργία χωρίς συγχρονισμό");
-      showToast("Λειτουργείτε σε τοπική λειτουργία", "warning");
-    }
+   function useWithoutFirebase() {
+  // ΑΥΤΟΜΑΤΗ ΣΥΝΔΕΣΗ ΣΤΟ FIREBASE
+  firebaseSetupModal.style.display = 'none';
+  setupFirebaseListeners();
+  updateFirebaseStatus(true, "Συνδέθηκε στο Firebase");
+  showToast("Συνδέθηκε στο Firebase!", "success");
+}
 
     function setupFirebaseListeners() {
       if (!currentTrip) return;
