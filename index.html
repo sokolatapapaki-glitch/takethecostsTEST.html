@@ -961,10 +961,6 @@ let currentTrip = null;
 let currentUser = null;
 let expenses = [];
 let chart = null;
-let peer = null;
-let connections = {};
-let myPeerId = null;
-let syncInterval = null;
 
 // DOM Elements
 const setupScreen = document.getElementById('setupScreen');
@@ -992,9 +988,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
-  // Initialize PeerJS on app load
-  initializePeerJS();
-  
   // Έλεγχος URL για κωδικό
   const urlParams = new URLSearchParams(window.location.search);
   const tripCode = urlParams.get('trip');
@@ -1010,237 +1003,189 @@ document.addEventListener('DOMContentLoaded', function() {
   renderCategories();
 });
 
-// ==================== PEERJS SYNC ====================
-function initializePeerJS() {
-  try {
-    // Χρησιμοποιούμε δωρεάν PeerJS server
-    peer = new Peer({
-      host: '0.peerjs.com',
-      port: 443,
-      path: '/',
-      secure: true,
-      debug: 3
-    });
+// ==================== QR CODE SYNC ====================
+function generateTripQR() {
+  if (!currentTrip) return;
+  
+  const shareData = {
+    tripCode: currentTrip.code,
+    tripName: currentTrip.name,
+    expenses: currentTrip.expenses || [],
+    members: currentTrip.members || [],
+    timestamp: Date.now()
+  };
+  
+  // Δημιουργία κειμένου για QR
+  const qrText = JSON.stringify(shareData);
+  
+  // Δημιουργία QR code
+  const qrContainer = document.createElement('div');
+  QRCode.toCanvas(qrText, { width: 200 }, function(error, canvas) {
+    if (error) {
+      console.error('QR generation error:', error);
+      return;
+    }
     
-    peer.on('open', function(id) {
-      console.log('✅ PeerJS connected! My ID:', id);
-      myPeerId = id;
-      updateSyncStatus(true);
-      
-      // Start checking for other peers every 10 seconds
-      syncInterval = setInterval(discoverPeers, 10000);
-    });
-    
-    peer.on('error', function(err) {
-      console.error('PeerJS error:', err);
-      updateSyncStatus(false);
-    });
-    
-    // Όταν κάποιος συνδεθεί σε εμάς
-    peer.on('connection', function(conn) {
-      console.log('📞 Someone connected to me:', conn.peer);
-      setupConnection(conn);
-    });
-    
-    // Όταν κλείσει η σύνδεση
-    peer.on('close', function() {
-      console.log('❌ PeerJS disconnected');
-      updateSyncStatus(false);
-    });
-    
-  } catch (error) {
-    console.error('Failed to initialize PeerJS:', error);
-    updateSyncStatus(false);
-  }
+    // Εμφάνιση QR σε modal
+    showQRModal(canvas, currentTrip.code);
+  });
 }
 
-function updateSyncStatus(connected) {
-  const statusElement = document.getElementById('liveSyncStatus');
-  if (!statusElement) return;
+function showQRModal(canvas, tripCode) {
+  // Δημιουργία modal για QR
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  modal.style.zIndex = '2000';
   
-  if (connected) {
-    statusElement.className = 'p2p-status p2p-connected';
-    statusElement.innerHTML = '<i class="fas fa-circle"></i><span>P2P: Online</span>';
+  modal.innerHTML = `
+    <div class="modal-content" style="text-align: center; max-width: 300px;">
+      <div class="modal-header">
+        <h2><i class="fas fa-qrcode"></i> Κωδικός Ταξιδιού</h2>
+        <button class="close-modal" onclick="this.parentElement.parentElement.remove()">&times;</button>
+      </div>
+      <div style="margin: 20px 0;">
+        <div style="background: white; padding: 10px; display: inline-block; border-radius: 8px;">
+          ${canvas.outerHTML}
+        </div>
+      </div>
+      <h3 style="margin: 10px 0; color: var(--primary);">${tripCode}</h3>
+      <p style="margin-bottom: 20px; color: var(--gray);">
+        Σκανάρετε με το άλλο κινητό ή μοιραστείτε τον κωδικό
+      </p>
+      <button class="btn btn-primary" onclick="copyTripCode('${tripCode}')" style="width: 100%;">
+        <i class="fas fa-copy"></i> Αντιγραφή Κωδικού
+      </button>
+      <button class="btn btn-secondary" onclick="shareTripViaLink('${tripCode}')" style="width: 100%; margin-top: 10px;">
+        <i class="fas fa-share-alt"></i> Κοινή Χρήση Link
+      </button>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Κλείσιμο με click έξω
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+}
+
+function copyTripCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    showToast('Αντιγράφηκε ο κωδικός!', 'success');
+  }).catch(err => {
+    // Fallback για παλιά browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = code;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    showToast('Αντιγράφηκε ο κωδικός!', 'success');
+  });
+}
+
+function shareTripViaLink(tripCode) {
+  const shareUrl = `${window.location.origin}${window.location.pathname}?trip=${tripCode}`;
+  
+  if (navigator.share) {
+    // Αν το browser υποστηρίζει Web Share API
+    navigator.share({
+      title: `Ταξίδι: ${currentTrip.name}`,
+      text: `Συνδέσου στο ταξίδι ${currentTrip.name}`,
+      url: shareUrl
+    });
   } else {
-    statusElement.className = 'p2p-status p2p-disconnected';
-    statusElement.innerHTML = '<i class="fas fa-circle"></i><span>P2P: Offline</span>';
+    // Fallback: αντιγραφή link
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast('Αντιγράφηκε το link! Στείλτε το στους φίλους σας', 'success');
+    });
   }
 }
 
-function discoverPeers() {
-  if (!currentTrip || !myPeerId) return;
-  
-  // Generate possible peer IDs based on trip code
-  const baseId = currentTrip.code.toLowerCase();
-  const possiblePeers = [
-    baseId,
-    baseId + '1',
-    baseId + '2',
-    baseId + '3',
-    baseId + '4',
-    baseId + '5'
-  ];
-  
-  // Try to connect to each possible peer
-  possiblePeers.forEach(peerId => {
-    if (peerId !== myPeerId && !connections[peerId]) {
-      tryConnectToPeer(peerId);
+function scanQRCode() {
+  // Απλή εισαγωγή κωδικού με μήνυμα
+  const tripCode = prompt("Σκανάρετε τον QR ή εισάγετε τον 6ψήφιο κωδικό:");
+  if (tripCode && tripCode.trim().length === 6) {
+    const userName = prompt("Πώς σας λένε;", "Φίλος");
+    if (userName) {
+      window.location.href = `${window.location.pathname}?trip=${tripCode.trim()}&user=${encodeURIComponent(userName)}`;
     }
-  });
-}
-
-function tryConnectToPeer(peerId) {
-  if (!peer || connections[peerId]) return;
-  
-  console.log('🔍 Trying to connect to peer:', peerId);
-  
-  try {
-    const conn = peer.connect(peerId, {
-      reliable: true,
-      serialization: 'json'
-    });
-    
-    conn.on('open', function() {
-      console.log('✅ Connected to peer:', peerId);
-      setupConnection(conn);
-      
-      // Send our current trip data
-      sendTripData(conn);
-    });
-    
-    conn.on('error', function(err) {
-      console.error('Connection error to', peerId, ':', err);
-      delete connections[peerId];
-    });
-    
-    conn.on('close', function() {
-      console.log('Connection closed to:', peerId);
-      delete connections[peerId];
-    });
-    
-  } catch (error) {
-    console.error('Failed to connect to', peerId, ':', error);
+  } else if (tripCode) {
+    showToast('Λάθος κωδικός. Χρειάζεται 6 χαρακτήρες.', 'warning');
   }
 }
 
-function setupConnection(conn) {
-  connections[conn.peer] = conn;
+// ==================== MANUAL SYNC ====================
+function exportTripData() {
+  if (!currentTrip) return;
   
-  // Όταν λαμβάνουμε δεδομένα
-  conn.on('data', function(data) {
-    console.log('📥 Received data from', conn.peer, ':', data);
-    
-    if (data.type === 'trip-data' && currentTrip && data.tripCode === currentTrip.code) {
-      handleIncomingTripData(data);
-    }
-    
-    if (data.type === 'sync-request' && currentTrip) {
-      // Κάποιος θέλει τα δεδομένα μας
-      sendTripData(conn);
-    }
-  });
-}
-
-function handleIncomingTripData(data) {
-  if (!currentTrip || data.tripCode !== currentTrip.code) return;
-  
-  const remoteTrip = data.trip;
-  const remoteLastUpdate = data.lastUpdate || 0;
-  const localLastUpdate = currentTrip.lastUpdate || 0;
-  
-  // Ελέγχουμε ποιο είναι πιο πρόσφατο
-  if (remoteLastUpdate > localLastUpdate) {
-    console.log('🔄 Syncing with remote data...');
-    
-    // Κρατάμε τους τοπικούς μας χρήστες
-    const existingMembers = new Set(currentTrip.members);
-    const remoteMembers = new Set(remoteTrip.members);
-    const allMembers = [...new Set([...existingMembers, ...remoteMembers])];
-    
-    // Συγχωνεύουμε τα expenses
-    const localExpenses = currentTrip.expenses || [];
-    const remoteExpenses = remoteTrip.expenses || [];
-    
-    // Δημιουργούμε Map για να εντοπίσουμε διπλότυπα
-    const expenseMap = new Map();
-    
-    // Πρώτα προσθέτουμε όλα τα local
-    localExpenses.forEach(exp => {
-      expenseMap.set(exp.id, exp);
-    });
-    
-    // Μετά προσθέτουμε/ενημερώνουμε με τα remote
-    remoteExpenses.forEach(exp => {
-      if (!expenseMap.has(exp.id) || 
-          (exp.timestamp > (expenseMap.get(exp.id)?.timestamp || 0))) {
-        expenseMap.set(exp.id, exp);
-      }
-    });
-    
-    // Μετατρέπουμε πίσω σε array
-    const mergedExpenses = Array.from(expenseMap.values())
-      .sort((a, b) => b.timestamp - a.timestamp);
-    
-    // Ενημέρωση του currentTrip
-    currentTrip.expenses = mergedExpenses;
-    currentTrip.members = allMembers;
-    currentTrip.lastUpdate = Math.max(localLastUpdate, remoteLastUpdate);
-    
-    expenses = currentTrip.expenses;
-    
-    // Αποθήκευση
-    saveTripToStorage();
-    
-    // Ενημέρωση UI
-    updateUI();
-    updateTotals();
-    
-    showToast('🔁 Ενημερώθηκαν τα δεδομένα από άλλο μέλος!', 'info');
-  }
-}
-
-function sendTripData(conn) {
-  if (!currentTrip || !conn) return;
-  
-  const syncData = {
-    type: 'trip-data',
-    tripCode: currentTrip.code,
+  const exportData = {
     trip: currentTrip,
-    lastUpdate: currentTrip.lastUpdate || Date.now(),
-    sender: currentUser,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    version: '1.0'
   };
   
-  try {
-    conn.send(syncData);
-    console.log('📤 Sent trip data to', conn.peer);
-  } catch (error) {
-    console.error('Failed to send data:', error);
-  }
+  const dataStr = JSON.stringify(exportData, null, 2);
+  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+  
+  const exportFileDefaultName = `trip_${currentTrip.code}_${new Date().toISOString().split('T')[0]}.json`;
+  
+  const linkElement = document.createElement('a');
+  linkElement.setAttribute('href', dataUri);
+  linkElement.setAttribute('download', exportFileDefaultName);
+  linkElement.click();
+  
+  showToast('Εξαγωγή δεδομένων ολοκληρώθηκε!', 'success');
 }
 
-function broadcastToAllPeers(data) {
-  Object.values(connections).forEach(conn => {
-    if (conn.open) {
+function importTripData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  
+  input.onchange = function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
       try {
-        conn.send(data);
+        const importedData = JSON.parse(e.target.result);
+        
+        if (!importedData.trip || !importedData.trip.code) {
+          showToast('Λάθος μορφή αρχείου', 'danger');
+          return;
+        }
+        
+        if (confirm(`Θέλετε να εισάγετε τα δεδομένα από το ταξίδι "${importedData.trip.name}";\nΑυτό θα αντικαταστήσει τυχόν υπάρχοντα δεδομένα.`)) {
+          // Αποθήκευση καινούργιου ταξιδιού
+          const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
+          allTrips[importedData.trip.code] = importedData.trip;
+          localStorage.setItem('allTrips', JSON.stringify(allTrips));
+          
+          // Επαναφορά με τα νέα δεδομένα
+          currentTrip = importedData.trip;
+          expenses = currentTrip.expenses || [];
+          currentUser = localStorage.getItem('currentUserName') || 'Ταξιδιώτης';
+          localStorage.setItem('currentTripCode', currentTrip.code);
+          
+          updateUI();
+          updateTotals();
+          showToast('Εισαγωγή δεδομένων επιτυχής!', 'success');
+        }
       } catch (error) {
-        console.error('Broadcast error to', conn.peer, ':', error);
+        console.error('Import error:', error);
+        showToast('Σφάλμα κατά την εισαγωγή', 'danger');
       }
-    }
-  });
-}
-
-function requestSyncFromPeers() {
-  if (Object.keys(connections).length === 0) return;
-  
-  const request = {
-    type: 'sync-request',
-    tripCode: currentTrip.code,
-    timestamp: Date.now()
+    };
+    
+    reader.readAsText(file);
   };
   
-  broadcastToAllPeers(request);
+  input.click();
 }
 
 // ==================== MAIN FUNCTIONS ====================
@@ -1279,8 +1224,7 @@ function autoJoinTrip(tripCode, userName, tripName) {
       creator: userName,
       created: new Date().toISOString(),
       members: [userName],
-      expenses: [],
-      lastUpdate: Date.now()
+      expenses: []
     };
     
     allTrips[tripCode] = currentTrip;
@@ -1304,20 +1248,10 @@ function autoJoinTrip(tripCode, userName, tripName) {
   localStorage.setItem('currentTripCode', tripCode);
   localStorage.setItem('currentUserName', userName);
   
-  // Generate unique Peer ID based on trip code and user
-  if (peer) {
-    const uniqueId = tripCode.toLowerCase() + '_' + userName.toLowerCase().replace(/\s+/g, '');
-    peer.id = uniqueId;
-    myPeerId = uniqueId;
-  }
-  
   showApp();
   updateUI();
   
   showToast(`Καλώς ήρθατε ${userName} στο "${currentTrip.name}"`, 'success');
-  
-  // Start peer discovery for this trip
-  setTimeout(discoverPeers, 2000);
 }
 
 function createNewTrip() {
@@ -1358,10 +1292,6 @@ function showApp() {
   appScreen.style.display = 'block';
   updateMembersDropdown();
   updateTotals();
-  
-  // Show P2P status
-  const p2pStatus = document.getElementById('p2pStatus');
-  if (p2pStatus) p2pStatus.style.display = 'flex';
 }
 
 function updateUI() {
@@ -1421,13 +1351,9 @@ function addQuickExpense() {
   
   expenses.push(newExpense);
   currentTrip.expenses = expenses;
-  currentTrip.lastUpdate = Date.now();
   
   saveTripToStorage();
   updateTotals();
-  
-  // ΚΑΙΝΟΥΡΓΙΟ: Συγχρονισμός με άλλα κινητά!
-  broadcastExpenseUpdate(newExpense);
   
   // Καθαρισμός φόρμας
   document.getElementById('expenseAmount').value = '';
@@ -1435,20 +1361,6 @@ function addQuickExpense() {
   document.getElementById('expenseAmount').focus();
   
   showToast(`✅ Προστέθηκε ${category} - ${amount.toFixed(2)}€`, 'success');
-}
-
-function broadcastExpenseUpdate(expense) {
-  if (Object.keys(connections).length === 0) return;
-  
-  const updateData = {
-    type: 'expense-update',
-    tripCode: currentTrip.code,
-    expense: expense,
-    timestamp: Date.now(),
-    sender: currentUser
-  };
-  
-  broadcastToAllPeers(updateData);
 }
 
 function saveTripToStorage() {
@@ -1527,29 +1439,9 @@ function deleteExpense(index) {
   const expense = expenses[index];
   expenses.splice(index, 1);
   currentTrip.expenses = expenses;
-  currentTrip.lastUpdate = Date.now();
-  
   saveTripToStorage();
   updateTotals();
-  
-  // Broadcast deletion
-  broadcastDeleteExpense(expense.id);
-  
   showToast(`Διαγράφηκε έξοδο ${expense.category}`, 'danger');
-}
-
-function broadcastDeleteExpense(expenseId) {
-  if (Object.keys(connections).length === 0) return;
-  
-  const deleteData = {
-    type: 'expense-delete',
-    tripCode: currentTrip.code,
-    expenseId: expenseId,
-    timestamp: Date.now(),
-    sender: currentUser
-  };
-  
-  broadcastToAllPeers(deleteData);
 }
 
 function renderCategories() {
@@ -1714,15 +1606,6 @@ function switchToTrip(tripCode) {
   updateUI();
   updateTotals();
   switchTab('tracker');
-  
-  // Re-initialize PeerJS for new trip
-  if (peer) {
-    const uniqueId = tripCode.toLowerCase() + '_' + currentUser.toLowerCase().replace(/\s+/g, '');
-    peer.id = uniqueId;
-    myPeerId = uniqueId;
-    setTimeout(discoverPeers, 1000);
-  }
-  
   showToast(`Επιστρέψατε στο ταξίδι "${currentTrip.name}"`, 'success');
 }
 
@@ -1779,18 +1662,13 @@ function resetCurrentTrip() {
 }
 
 function manualSync() {
-  showToast('Ψάχνω για άλλα κινητά...', 'info');
-  discoverPeers();
-  requestSyncFromPeers();
+  showToast('Επαναφόρτωση...', 'info');
+  location.reload();
 }
 
 function forceSync() {
-  showToast('Εξαναγκασμός συγχρονισμού...', 'info');
-  discoverPeers();
-  setTimeout(() => {
-    requestSyncFromPeers();
-    showToast('Συγχρονισμός σε εξέλιξη...', 'info');
-  }, 1000);
+  // NEW: Προσθήκη QR sharing
+  generateTripQR();
 }
 
 function generateTripCode() {
@@ -1820,7 +1698,5 @@ function showToast(message, type = 'success') {
   }, 3000);
 }
 </script>
-</body>
-</html>
 </body>
 </html>
