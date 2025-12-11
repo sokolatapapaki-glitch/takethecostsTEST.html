@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Travel Expense Tracker - Universal Sync</title>
+  <title>Travel Expense Tracker</title>
   <link rel="icon" href="https://img.icons8.com/color/96/000000/wallet--v1.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- PeerJS για P2P -->
+<!-- Προσθέστε αυτά μετά το font-awesome -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
-  <!-- Firebase για cross-network sync -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <style>
-    /* (ΟΛΑ ΤΑ STYLES ΜΕΝΟΥΝ ΙΔΙΑ) */
     :root {
       --primary: #3b82f6;
       --primary-light: #60a5fa;
@@ -84,65 +83,555 @@
       gap: 8px;
     }
 
-    /* ... (τα υπόλοιπα styles παραμένουν ίδια) ... */
-    
-    /* Νέα styles για sync status */
-    .sync-options {
+    .header-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    
-    .sync-option {
-      flex: 1;
-      min-width: 150px;
-      padding: 10px;
-      border-radius: 8px;
-      background: white;
-      border: 2px solid #e2e8f0;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       transition: var(--transition);
+    }
+
+    .header-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+
+    .setup-section {
+      background: white;
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
       text-align: center;
     }
-    
-    .sync-option:hover {
-      border-color: var(--primary);
-      transform: translateY(-2px);
+
+    .setup-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      color: var(--primary-dark);
+      justify-content: center;
     }
-    
-    .sync-option.active {
-      border-color: var(--success);
-      background: #f0fdf4;
+
+    .setup-form {
+      max-width: 400px;
+      margin: 0 auto;
     }
-    
-    .sync-status-badge {
+
+    .card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-lg);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      color: var(--primary-dark);
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 8px;
+    }
+
+    .trip-info {
+      background: linear-gradient(135deg, #e0f2fe, #bae6fd);
+      padding: 16px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .members-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .member-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 12px;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.9);
       border-radius: 20px;
-      font-size: 0.8rem;
+      font-size: 0.9rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sync-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .sync-pulse {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
       font-weight: 600;
-      margin-left: 10px;
+      margin-bottom: 6px;
+      color: var(--dark);
+      font-size: 0.95rem;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: var(--transition);
+      background-color: white;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+
+    .btn-success {
+      background-color: var(--success);
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #059669;
+      transform: translateY(-2px);
+    }
+
+    .btn-danger {
+      background-color: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
+      transform: translateY(-2px);
+    }
+
+    .btn-info {
+      background-color: var(--info);
+      color: white;
+    }
+
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .category-btn {
+      padding: 16px 12px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      color: var(--dark);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .category-btn:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+    }
+
+    .category-btn .emoji {
+      font-size: 1.8rem;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .summary-box {
+      background: linear-gradient(135deg, var(--primary-light), var(--primary));
+      color: white;
+      padding: 20px;
+      border-radius: var(--radius);
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .summary-box h3 {
+      font-size: 1rem;
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+
+    .summary-box .amount {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .expense-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      background-color: #f8fafc;
+      border-radius: 10px;
+      border-left: 4px solid var(--primary);
+      transition: var(--transition);
+    }
+
+    .expense-item:hover {
+      background-color: #f1f5f9;
+      transform: translateX(4px);
+    }
+
+    .expense-info {
+      flex: 1;
+    }
+
+    .expense-label {
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 4px;
+    }
+
+    .expense-meta {
+      display: flex;
+      gap: 12px;
+      font-size: 0.85rem;
+      color: var(--gray);
+    }
+
+    .expense-user {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .expense-amount {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--primary-dark);
+      margin-right: 12px;
+    }
+
+    .expense-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .chart-container {
+      height: 300px;
+      margin-top: 16px;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      font-weight: 600;
+      color: var(--gray);
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      transition: var(--transition);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--gray);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: var(--success);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--gray);
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    /* MOBILE FIXES */
+    @media (max-width: 768px) {
+      .container {
+        padding: 8px;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .trip-info {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .sync-status {
+        align-self: flex-start;
+      }
+
+      .categories-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      }
+
+      .category-btn {
+        padding: 12px 8px;
+        font-size: 0.85rem;
+      }
+
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .expense-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .expense-amount {
+        align-self: flex-start;
+      }
+
+      .expense-actions {
+        align-self: flex-end;
+      }
+
+      .header-buttons {
+        position: static;
+        margin-top: 16px;
+        justify-content: center;
+      }
+    }
+
+    /* ADD EXPENSE FORM - MOBILE FRIENDLY */
+    .add-expense-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .amount-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    .amount-input {
+      flex: 3;
+    }
+
+    .add-button {
+      flex: 1;
+      height: 50px;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 24px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .add-button:hover {
+      background: #059669;
+      transform: scale(1.05);
+    }
+
+    .add-button:active {
+      transform: scale(0.95);
+    }
+
+    /* P2P Status */
+    .p2p-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.2);
+      margin-left: 8px;
     }
     
-    .sync-online {
-      background: #10b98120;
+    .p2p-connected {
+      background: rgba(16, 185, 129, 0.2);
       color: #10b981;
-      border: 1px solid #10b98140;
     }
     
-    .sync-offline {
-      background: #ef444420;
+    .p2p-disconnected {
+      background: rgba(239, 68, 68, 0.2);
       color: #ef4444;
-      border: 1px solid #ef444440;
     }
-    
-    .sync-cloud {
-      background: #3b82f620;
-      color: #3b82f6;
-      border: 1px solid #3b82f640;
+
+    /* Better inputs for mobile */
+    input[type="number"] {
+      font-size: 18px !important;
+    }
+
+    select {
+      font-size: 16px !important;
     }
   </style>
 </head>
@@ -152,7 +641,7 @@
     <div id="setupScreen">
       <header>
         <h1><i class="fas fa-receipt"></i> Travel Expense Tracker</h1>
-        <p class="tagline">🚀 <strong>Universal Sync</strong> - Δουλεύει παντού!</p>
+        <p class="tagline">Κοινή καταγραφή εξόδων ταξιδιού</p>
       </header>
       
       <div class="setup-section">
@@ -184,47 +673,17 @@
           </div>
         </div>
       </div>
-      
-      <!-- Πληροφορίες Sync -->
-      <div style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: var(--radius);">
-        <h3><i class="fas fa-sync-alt"></i> Πώς λειτουργεί ο συγχρονισμός:</h3>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 15px;">
-          <div style="text-align: center; padding: 15px; background: white; border-radius: 10px; box-shadow: var(--shadow);">
-            <div style="font-size: 2rem; margin-bottom: 10px;">🤝</div>
-            <strong>P2P (Τοπικό)</strong>
-            <p style="font-size: 0.85rem; color: var(--gray); margin-top: 5px;">Όλοι στο ίδιο WiFi</p>
-          </div>
-          
-          <div style="text-align: center; padding: 15px; background: white; border-radius: 10px; box-shadow: var(--shadow);">
-            <div style="font-size: 2rem; margin-bottom: 10px;">☁️</div>
-            <strong>Cloud Sync</strong>
-            <p style="font-size: 0.85rem; color: var(--gray); margin-top: 5px;">Δουλεύει παντού</p>
-          </div>
-          
-          <div style="text-align: center; padding: 15px; background: white; border-radius: 10px; box-shadow: var(--shadow);">
-            <div style="font-size: 2rem; margin-bottom: 10px;">🔄</div>
-            <strong>Backup</strong>
-            <p style="font-size: 0.85rem; color: var(--gray); margin-top: 5px;">Χειροκίνητος συγχρονισμός</p>
-          </div>
-        </div>
-        
-        <p style="margin-top: 15px; font-size: 0.9rem; color: var(--dark);">
-          <i class="fas fa-check-circle" style="color: #10b981;"></i>
-          <strong> Η εφαρμογή προσπαθεί αυτόματα και τους τρεις τρόπους!</strong>
-        </p>
-      </div>
     </div>
 
     <!-- Join Trip Screen -->
     <div id="joinScreen" class="setup-section" style="display: none;">
       <div class="join-screen">
         <h2><i class="fas fa-sign-in-alt"></i> Σύνδεση σε Ταξίδι</h2>
-        <p>Εισάγετε τον 6ψήφιο κωδικό που σας έστειλε ο φίλος σας</p>
+        <p>Ζητήστε από τον δημιουργό του ταξιδιού να σας στείλει τον κωδικό πρόσβασης</p>
         
         <div class="form-group">
           <label for="joinTripCode">Κωδικός Ταξιδιού</label>
-          <input id="joinTripCode" type="text" placeholder="Π.χ. ABCD12" style="text-align: center; letter-spacing: 3px; font-size: 1.5rem; font-weight: bold;">
+          <input id="joinTripCode" type="text" placeholder="Εισάγετε τον 6ψήφιο κωδικό" style="text-align: center; letter-spacing: 3px; font-size: 1.2rem;">
         </div>
         
         <div class="form-group">
@@ -248,111 +707,22 @@
       <header>
         <h1><i class="fas fa-receipt"></i> Travel Expense Tracker</h1>
         <p class="tagline" id="tripTagline">Κοινή καταγραφή εξόδων</p>
-        
-        <!-- Sync Status -->
-        <div id="globalSyncStatus" style="margin-top: 8px; display: flex; justify-content: center; gap: 10px;">
-          <span id="p2pStatus" class="sync-status-badge sync-offline">
-            <i class="fas fa-wifi"></i> P2P
-          </span>
-          <span id="cloudStatus" class="sync-status-badge sync-offline">
-            <i class="fas fa-cloud"></i> Cloud
-          </span>
-          <span id="usersCountBadge" class="sync-status-badge sync-online">
-            <i class="fas fa-users"></i> <span id="activeUsers">1</span>
-          </span>
-        </div>
-        
         <div class="header-buttons">
           <button class="header-btn" onclick="showShareModal()" title="Κοινή χρήση">
             <i class="fas fa-share-alt"></i>
           </button>
-          <button class="header-btn" onclick="forceSyncAll()" title="Εξαναγκασμός συγχρονισμού">
+          <button class="header-btn" onclick="forceSync()" title="Εξαναγκασμός συγχρονισμού">
             <i class="fas fa-sync-alt"></i>
           </button>
           <button class="header-btn" onclick="showNewTripModal()" title="Νέο ταξίδι">
             <i class="fas fa-plus-circle"></i>
           </button>
         </div>
-      </header>
-
-      <!-- Share Modal -->
-      <div id="shareModal" class="modal">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2><i class="fas fa-share-alt"></i> Κοινή Χρήση Ταξιδιού</h2>
-            <button class="close-modal" onclick="closeShareModal()">&times;</button>
-          </div>
-          
-          <!-- Κωδικός -->
-          <div class="form-group">
-            <label><i class="fas fa-hashtag"></i> Κωδικός Ταξιδιού</label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input id="tripCodeDisplay" type="text" readonly 
-                     style="flex: 1; font-size: 1.8rem; letter-spacing: 5px; text-align: center; font-weight: bold; padding: 15px; background: #f8fafc; border-radius: 10px;">
-              <button class="btn btn-primary" onclick="copyTripCode()" style="padding: 15px;">
-                <i class="fas fa-copy"></i>
-              </button>
-            </div>
-            <p style="font-size: 0.9rem; color: var(--gray); margin-top: 8px; text-align: center;">
-              Δώστε αυτόν τον κωδικό στους φίλους σας
-            </p>
-          </div>
-          
-          <!-- Σύνδεσμος -->
-          <div style="margin-top: 20px;">
-            <h3><i class="fas fa-link"></i> Σύνδεσμος Κοινής Χρήσης</h3>
-            <div style="display: flex; gap: 8px; margin-top: 10px;">
-              <input id="shareLink" type="text" readonly style="flex: 1; padding: 12px; font-family: monospace;">
-              <button class="btn btn-success" onclick="copyShareLink()">
-                <i class="fas fa-copy"></i>
-              </button>
-            </div>
-            <p style="font-size: 0.85rem; color: var(--gray); margin-top: 8px;">
-              Απλά αντιγράψτε και στείλτε αυτόν τον σύνδεσμο
-            </p>
-          </div>
-          
-          <!-- Sync Info -->
-          <div style="margin-top: 25px; padding: 20px; background: #f0f9ff; border-radius: var(--radius);">
-            <h3><i class="fas fa-info-circle"></i> Οδηγίες Συγχρονισμού</h3>
-            
-            <div style="margin-top: 15px;">
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: white; border-radius: 8px;">
-                <div style="color: #10b981; font-size: 1.5rem;">1️⃣</div>
-                <div>
-                  <strong>Στείλτε το link</strong> σε όλους τους φίλους
-                </div>
-              </div>
-              
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: white; border-radius: 8px;">
-                <div style="color: #3b82f6; font-size: 1.5rem;">2️⃣</div>
-                <div>
-                  <strong>Αυτόματος συγχρονισμός</strong> μέσω Cloud
-                </div>
-              </div>
-              
-              <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: 8px;">
-                <div style="color: #8b5cf6; font-size: 1.5rem;">3️⃣</div>
-                <div>
-                  <strong>Καταχωρήσεις εμφανίζονται</strong> σε όλους σε πραγματικό χρόνο
-                </div>
-              </div>
-            </div>
-            
-            <div style="margin-top: 15px; padding: 10px; background: #dbeafe; border-radius: 8px; text-align: center;">
-              <strong>✨ Δουλεύει ΑΚΟΜΑ ΚΑΙ ΣΕ ΔΙΑΦΟΡΕΤΙΚΕΣ ΧΩΡΕΣ! ✨</strong>
-            </div>
-          </div>
-          
-          <!-- QR Code -->
-          <div style="margin-top: 20px; text-align: center;">
-            <button class="btn btn-secondary" onclick="generateQRCode()">
-              <i class="fas fa-qrcode"></i> Δημιουργία QR Code
-            </button>
-            <div id="qrContainer" style="margin-top: 15px; display: none;"></div>
-          </div>
+        <div id="p2pStatus" class="p2p-status p2p-disconnected" style="display: none;">
+          <i class="fas fa-circle"></i>
+          <span>P2P: Offline</span>
         </div>
-      </div>
+      </header>
 
       <!-- Trip Info -->
       <div class="trip-info">
@@ -361,11 +731,15 @@
           <div class="members-badges" id="currentMembers"></div>
         </div>
         <div class="sync-status">
-          <div id="syncIndicator" class="sync-pulse" style="background: #10b981;"></div>
-          <span id="syncStatusText">Συγχρονισμένο</span>
+          <div class="sync-pulse"></div>
+          <span id="syncStatus">Συγχρονισμένο</span>
           <button class="btn btn-sm btn-info" onclick="manualSync()" style="margin-left: 8px;">
             <i class="fas fa-sync-alt"></i>
           </button>
+          <div id="liveSyncStatus" class="p2p-status p2p-disconnected" style="margin-left: 8px;">
+            <i class="fas fa-circle"></i>
+            <span>Offline</span>
+          </div>
         </div>
       </div>
 
@@ -374,7 +748,7 @@
         <button class="tab-btn active" data-tab="tracker"><i class="fas fa-plus-circle"></i> Καταχώρηση</button>
         <button class="tab-btn" data-tab="summary"><i class="fas fa-chart-pie"></i> Σύνοψη</button>
         <button class="tab-btn" data-tab="expenses"><i class="fas fa-list"></i> Καταχωρήσεις</button>
-        <button class="tab-btn" data-tab="settings"><i class="fas fa-cog"></i> Ρυθμίσεις</button>
+        <button class="tab-btn" data-tab="trips"><i class="fas fa-suitcase"></i> Ταξίδια Μου</button>
       </div>
 
       <!-- Tracker Tab -->
@@ -388,66 +762,65 @@
           <div class="categories-grid" id="category-buttons"></div>
         </div>
 
-        <!-- Custom Expense -->
+        <!-- Add Expense Form -->
         <div class="card">
           <div class="card-title">
-            <i class="fas fa-lightbulb"></i>
+            <i class="fas fa-plus-circle"></i>
             <h2>Προσθήκη Εξόδου</h2>
           </div>
           
-          <div style="display: flex; flex-direction: column; gap: 15px;">
-            <div class="form-group">
-              <label for="expenseAmount">Ποσό (€)</label>
-              <input id="expenseAmount" type="number" min="0" step="0.01" placeholder="0.00" 
-                     style="width: 100%; font-size: 18px; padding: 15px; text-align: center;"
-                     onfocus="this.select()">
+          <div class="add-expense-form">
+            <!-- Amount + Add Button -->
+            <div class="amount-row">
+              <div class="form-group amount-input">
+                <label for="expenseAmount">Ποσό (€)</label>
+                <input id="expenseAmount" type="number" min="0" step="0.01" placeholder="0.00">
+              </div>
+              <button class="add-button" onclick="addQuickExpense()" title="Προσθήκη">
+                <i class="fas fa-plus"></i>
+              </button>
             </div>
             
+            <!-- Category -->
             <div class="form-group">
               <label for="expenseCategory">Κατηγορία</label>
               <select id="expenseCategory">
-                <option value="Πρωινό">Πρωινό 🥐</option>
-                <option value="Μεσημεριανό">Μεσημεριανό 🍝</option>
-                <option value="Βραδινό">Βραδινό 🍲</option>
-                <option value="Σνακ">Σνακ 🍦</option>
-                <option value="Δώρα">Δώρα 🎁</option>
-                <option value="Μέσα Μεταφοράς">Μέσα Μεταφοράς 🚌</option>
-                <option value="Αεροπορικά">Αεροπορικά ✈️</option>
-                <option value="Ενοικίαση Αυτοκινήτου">Ενοικίαση Αυτοκινήτου 🚗</option>
-                <option value="Διαμονή">Διαμονή 🏨</option>
-                <option value="Αξιοθέατα">Αξιοθέατα 🏛️</option>
-              </select>
+  <option value="Πρωινό">Πρωινό 🥐</option>
+  <option value="Μεσημεριανό">Μεσημεριανό 🍝</option>
+  <option value="Βραδινό">Βραδινό 🍲</option>
+  <option value="Σνακ">Σνακ 🍦</option>
+  <option value="Δώρα">Δώρα 🎁</option>
+  <option value="Μέσα Μεταφοράς">Μέσα Μεταφοράς 🚌</option>
+  <option value="Αεροπορικά">Αεροπορικά ✈️</option>
+  <option value="Ενοικίαση Αυτοκινήτου">Ενοικίαση Αυτοκινήτου 🚗</option>
+  <option value="Διαμονή">Διαμονή 🏨</option>
+  <option value="Αξιοθέατα">Αξιοθέατα 🏛️</option>
+</select>
             </div>
             
+            <!-- Who Paid -->
             <div class="form-group">
               <label for="expenseUser">Ποιος πλήρωσε;</label>
-              <select id="expenseUser" style="width: 100%; padding: 12px; font-size: 16px;"></select>
+              <select id="expenseUser"></select>
             </div>
             
+            <!-- Note -->
             <div class="form-group">
               <label for="expenseNote">Σημείωση (προαιρετικά)</label>
-              <input id="expenseNote" type="text" placeholder="Π.χ. Καφές στο λιμάνι" 
-                     style="width: 100%; padding: 12px; font-size: 16px;">
+              <input id="expenseNote" type="text" placeholder="Π.χ. Καφές στο λιμάνι">
             </div>
             
-            <button class="btn btn-primary" onclick="addQuickExpense()" 
-                    style="width: 100%; padding: 18px; font-size: 18px; font-weight: bold; margin-top: 10px; border-radius: 12px;">
-              <i class="fas fa-plus-circle"></i> ΠΡΟΣΘΗΚΗ ΕΞΟΔΟΥ
-            </button>
+            <!-- Instructions -->
+            <div style="padding: 10px; background: #f0f9ff; border-radius: 8px; text-align: center;">
+              <p style="margin: 0; font-size: 14px; color: #1e40af;">
+                <i class="fas fa-hand-point-up"></i> 
+                <strong>Γρήγορη προσθήκη:</strong> Βάλε ποσό → Πατά "+"
+              </p>
+            </div>
           </div>
-        </div>
-        
-        <!-- Live Updates Feed -->
-        <div class="card" id="liveFeedCard" style="display: none;">
-          <div class="card-title">
-            <i class="fas fa-broadcast-tower"></i>
-            <h2>Live Updates</h2>
-          </div>
-          <div id="liveFeed" style="max-height: 200px; overflow-y: auto; padding-right: 8px;"></div>
         </div>
       </div>
 
-      <!-- (ΤΑ ΥΠΟΛΟΙΠΑ TAB ΜΕΝΟΥΝ ΙΔΙΑ - SUMMARY, EXPENSES, SETTINGS) -->
       <!-- Summary Tab -->
       <div id="summary" class="tab-content">
         <div class="summary-grid">
@@ -478,6 +851,14 @@
             <canvas id="categoryChart"></canvas>
           </div>
         </div>
+
+        <div class="card">
+          <div class="card-title">
+            <i class="fas fa-user-friends"></i>
+            <h2>Σύνοψη Ανά Μέλος</h2>
+          </div>
+          <div id="userSummary"></div>
+        </div>
       </div>
 
       <!-- Expenses Tab -->
@@ -486,92 +867,67 @@
           <div class="card-title">
             <i class="fas fa-receipt"></i>
             <h2>Όλες οι Καταχωρήσεις</h2>
-            <span id="expensesCount" style="margin-left: auto; background: #3b82f6; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem;">0</span>
           </div>
           <div id="allExpenses"></div>
         </div>
       </div>
 
-      <!-- Settings Tab -->
-      <div id="settings" class="tab-content">
+      <!-- Trips Tab -->
+      <div id="trips" class="tab-content">
         <div class="card">
           <div class="card-title">
-            <i class="fas fa-cog"></i>
-            <h2>Ρυθμίσεις Συγχρονισμού</h2>
+            <i class="fas fa-suitcase"></i>
+            <h2>Τα Ταξίδια Μου</h2>
           </div>
-          
-          <!-- Sync Method -->
-          <div class="form-group">
-            <label><i class="fas fa-sync-alt"></i> Μέθοδος Συγχρονισμού</label>
-            <div class="sync-options">
-              <div class="sync-option active" onclick="setSyncMethod('cloud')">
-                <i class="fas fa-cloud" style="font-size: 1.5rem; color: #3b82f6; margin-bottom: 5px;"></i>
-                <div><strong>Cloud</strong></div>
-                <small style="font-size: 0.8rem; color: var(--gray);">Πάντα λειτουργεί</small>
-              </div>
-              
-              <div class="sync-option" onclick="setSyncMethod('p2p')">
-                <i class="fas fa-wifi" style="font-size: 1.5rem; color: #10b981; margin-bottom: 5px;"></i>
-                <div><strong>P2P</strong></div>
-                <small style="font-size: 0.8rem; color: var(--gray);">Τοπικό δίκτυο</small>
-              </div>
-              
-              <div class="sync-option" onclick="setSyncMethod('both')">
-                <i class="fas fa-random" style="font-size: 1.5rem; color: #8b5cf6; margin-bottom: 5px;"></i>
-                <div><strong>Και τα δύο</strong></div>
-                <small style="font-size: 0.8rem; color: var(--gray);">Όλα τα μέσα</small>
-              </div>
+          <div id="myTripsList">
+            <div class="empty-state" id="tripsEmptyState">
+              <i class="fas fa-suitcase"></i>
+              <p>Δεν βρέθηκαν αποθηκευμένα ταξίδια</p>
             </div>
           </div>
           
-          <!-- Current Status -->
-          <div class="form-group">
-            <label><i class="fas fa-chart-line"></i> Κατάσταση Συγχρονισμού</label>
-            <div style="padding: 15px; background: #f8fafc; border-radius: 8px; margin-top: 8px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Cloud:</span>
-                <span id="cloudStatusText" style="font-weight: bold; color: #10b981;">Συνδεδεμένο</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>P2P:</span>
-                <span id="p2pStatusText" style="font-weight: bold; color: #ef4444;">Offline</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span>Ενεργοί χρήστες:</span>
-                <span id="activeUsersCount" style="font-weight: bold; color: #8b5cf6;">1</span>
-              </div>
-              <div style="display: flex; justify-content: space-between;">
-                <span>Τελευταία ενημέρωση:</span>
-                <span id="lastUpdateTime">-</span>
-              </div>
-            </div>
+          <div style="margin-top: 20px;">
+            <button class="btn btn-primary" onclick="showNewTripModal()" style="width: 100%;">
+              <i class="fas fa-plus-circle"></i> Νέο Ταξίδι
+            </button>
           </div>
-          
-          <!-- Actions -->
-          <div class="form-group">
-            <label><i class="fas fa-tools"></i> Ενέργειες</label>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
-              <button class="btn btn-info" onclick="forceSyncAll()">
-                <i class="fas fa-sync-alt"></i> Sync Τώρα
-              </button>
-              <button class="btn btn-warning" onclick="testAllConnections()">
-                <i class="fas fa-network-wired"></i> Test
-              </button>
-              <button class="btn btn-success" onclick="showShareModal()" style="grid-column: span 2;">
-                <i class="fas fa-share-alt"></i> Κοινή Χρήση
-              </button>
-            </div>
+        </div>
+      </div>
+
+      <!-- Modals -->
+      <div id="shareModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2><i class="fas fa-share-alt"></i> Κοινή Χρήση</h2>
+            <button class="close-modal" onclick="closeShareModal()">&times;</button>
           </div>
-          
-          <!-- Trip Info -->
           <div class="form-group">
-            <label><i class="fas fa-info-circle"></i> Πληροφορίες Ταξιδιού</label>
-            <div style="padding: 15px; background: #f8fafc; border-radius: 8px; margin-top: 8px;">
-              <div><strong>Κωδικός:</strong> <span id="settingsTripCode"></span></div>
-              <div style="margin-top: 5px;"><strong>Δημιουργός:</strong> <span id="settingsTripCreator"></span></div>
-              <div style="margin-top: 5px;"><strong>Ημερομηνία:</strong> <span id="settingsTripDate"></span></div>
-              <div style="margin-top: 5px;"><strong>Μέλη:</strong> <span id="settingsTripMembers">1</span></div>
-            </div>
+            <label>Κωδικός Ταξιδιού</label>
+            <input id="tripCodeDisplay" type="text" readonly style="text-align: center; font-size: 1.5rem; font-weight: bold;">
+            <p style="font-size: 0.9rem; color: var(--gray); margin-top: 8px;">
+              Δώστε αυτόν τον κωδικό στους φίλους σας
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div id="newTripModal" class="modal">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2><i class="fas fa-plus-circle"></i> Νέο Ταξίδι</h2>
+            <button class="close-modal" onclick="closeNewTripModal()">&times;</button>
+          </div>
+          <p>Τι θα θέλατε να κάνετε;</p>
+          <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+            <button class="btn btn-primary" onclick="createBrandNewTrip()">
+              <i class="fas fa-plus"></i> Νέο Ταξίδι
+            </button>
+            <button class="btn btn-secondary" onclick="switchToAnotherTrip()">
+              <i class="fas fa-exchange-alt"></i> Αλλαγή Ταξιδιού
+            </button>
+            <button class="btn btn-danger" onclick="resetCurrentTrip()">
+              <i class="fas fa-redo"></i> Επαναφορά Τρέχοντος
+            </button>
           </div>
         </div>
       </div>
@@ -585,1095 +941,886 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    // ============================================
-    // UNIVERSAL SYNC SYSTEM - ΔΟΥΛΕΥΕΙ ΠΑΝΤΟΥ!
-    // ============================================
+<script>
+// Κατηγορίες
+let categories = [
+  { name: "Πρωινό", emoji: "🥐", color: "#f59e0b" },
+  { name: "Μεσημεριανό", emoji: "🍝", color: "#10b981" },
+  { name: "Βραδινό", emoji: "🍲", color: "#8b82f6" },
+  { name: "Σνακ", emoji: "🍦", color: "#ec4899" },
+  { name: "Δώρα", emoji: "🎁", color: "#ef4444" },
+  { name: "Μέσα Μεταφοράς", emoji: "🚌", color: "#3b82f6" },
+  { name: "Αεροπορικά", emoji: "✈️", color: "#06b6d4" },
+  { name: "Ενοικίαση Αυτοκινήτου", emoji: "🚗", color: "#8b5cf6" },
+  { name: "Διαμονή", emoji: "🏨", color: "#f59e0b" },
+  { name: "Αξιοθέατα", emoji: "🏛️", color: "#10b981" }
+];
+
+// Μεταβλητές
+let currentTrip = null;
+let currentUser = null;
+let expenses = [];
+let chart = null;
+let peer = null;
+let connections = {};
+let myPeerId = null;
+let syncInterval = null;
+
+// DOM Elements
+const setupScreen = document.getElementById('setupScreen');
+const joinScreen = document.getElementById('joinScreen');
+const appScreen = document.getElementById('appScreen');
+const toast = document.getElementById('toast');
+
+// Αρχικοποίηση
+document.addEventListener('DOMContentLoaded', function() {
+  console.log("🚀 Εφαρμογή φορτώθηκε!");
+  
+  // Προσθέστε event listeners για τα tabs
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const tabName = this.getAttribute('data-tab');
+      switchTab(tabName);
+    });
+  });
+  
+  // Enter key για το ποσό
+  document.getElementById('expenseAmount')?.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addQuickExpense();
+    }
+  });
+  
+  // Initialize PeerJS on app load
+  initializePeerJS();
+  
+  // Έλεγχος URL για κωδικό
+  const urlParams = new URLSearchParams(window.location.search);
+  const tripCode = urlParams.get('trip');
+  const userName = urlParams.get('user');
+  
+  if (tripCode) {
+    autoJoinTrip(tripCode, userName, `Ταξίδι ${tripCode}`);
+  } else {
+    checkSavedTrip();
+  }
+  
+  // Render categories
+  renderCategories();
+});
+
+// ==================== PEERJS SYNC ====================
+function initializePeerJS() {
+  try {
+    // Χρησιμοποιούμε δωρεάν PeerJS server
+    peer = new Peer({
+      host: '0.peerjs.com',
+      port: 443,
+      path: '/',
+      secure: true,
+      debug: 3
+    });
     
-    // Firebase Configuration (Public Project για ελεύθερη χρήση)
-    const firebaseConfig = {
-      apiKey: "AIzaSyC4QwWgPjG7vZ1p4nLmQ9t8XyRzB0VfDsE", // Public API key
-      databaseURL: "https://travel-expense-tracker-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "travel-expense-tracker",
-      appId: "1:1234567890:web:abcdef123456"
+    peer.on('open', function(id) {
+      console.log('✅ PeerJS connected! My ID:', id);
+      myPeerId = id;
+      updateSyncStatus(true);
+      
+      // Start checking for other peers every 10 seconds
+      syncInterval = setInterval(discoverPeers, 10000);
+    });
+    
+    peer.on('error', function(err) {
+      console.error('PeerJS error:', err);
+      updateSyncStatus(false);
+    });
+    
+    // Όταν κάποιος συνδεθεί σε εμάς
+    peer.on('connection', function(conn) {
+      console.log('📞 Someone connected to me:', conn.peer);
+      setupConnection(conn);
+    });
+    
+    // Όταν κλείσει η σύνδεση
+    peer.on('close', function() {
+      console.log('❌ PeerJS disconnected');
+      updateSyncStatus(false);
+    });
+    
+  } catch (error) {
+    console.error('Failed to initialize PeerJS:', error);
+    updateSyncStatus(false);
+  }
+}
+
+function updateSyncStatus(connected) {
+  const statusElement = document.getElementById('liveSyncStatus');
+  if (!statusElement) return;
+  
+  if (connected) {
+    statusElement.className = 'p2p-status p2p-connected';
+    statusElement.innerHTML = '<i class="fas fa-circle"></i><span>P2P: Online</span>';
+  } else {
+    statusElement.className = 'p2p-status p2p-disconnected';
+    statusElement.innerHTML = '<i class="fas fa-circle"></i><span>P2P: Offline</span>';
+  }
+}
+
+function discoverPeers() {
+  if (!currentTrip || !myPeerId) return;
+  
+  // Generate possible peer IDs based on trip code
+  const baseId = currentTrip.code.toLowerCase();
+  const possiblePeers = [
+    baseId,
+    baseId + '1',
+    baseId + '2',
+    baseId + '3',
+    baseId + '4',
+    baseId + '5'
+  ];
+  
+  // Try to connect to each possible peer
+  possiblePeers.forEach(peerId => {
+    if (peerId !== myPeerId && !connections[peerId]) {
+      tryConnectToPeer(peerId);
+    }
+  });
+}
+
+function tryConnectToPeer(peerId) {
+  if (!peer || connections[peerId]) return;
+  
+  console.log('🔍 Trying to connect to peer:', peerId);
+  
+  try {
+    const conn = peer.connect(peerId, {
+      reliable: true,
+      serialization: 'json'
+    });
+    
+    conn.on('open', function() {
+      console.log('✅ Connected to peer:', peerId);
+      setupConnection(conn);
+      
+      // Send our current trip data
+      sendTripData(conn);
+    });
+    
+    conn.on('error', function(err) {
+      console.error('Connection error to', peerId, ':', err);
+      delete connections[peerId];
+    });
+    
+    conn.on('close', function() {
+      console.log('Connection closed to:', peerId);
+      delete connections[peerId];
+    });
+    
+  } catch (error) {
+    console.error('Failed to connect to', peerId, ':', error);
+  }
+}
+
+function setupConnection(conn) {
+  connections[conn.peer] = conn;
+  
+  // Όταν λαμβάνουμε δεδομένα
+  conn.on('data', function(data) {
+    console.log('📥 Received data from', conn.peer, ':', data);
+    
+    if (data.type === 'trip-data' && currentTrip && data.tripCode === currentTrip.code) {
+      handleIncomingTripData(data);
+    }
+    
+    if (data.type === 'sync-request' && currentTrip) {
+      // Κάποιος θέλει τα δεδομένα μας
+      sendTripData(conn);
+    }
+  });
+}
+
+function handleIncomingTripData(data) {
+  if (!currentTrip || data.tripCode !== currentTrip.code) return;
+  
+  const remoteTrip = data.trip;
+  const remoteLastUpdate = data.lastUpdate || 0;
+  const localLastUpdate = currentTrip.lastUpdate || 0;
+  
+  // Ελέγχουμε ποιο είναι πιο πρόσφατο
+  if (remoteLastUpdate > localLastUpdate) {
+    console.log('🔄 Syncing with remote data...');
+    
+    // Κρατάμε τους τοπικούς μας χρήστες
+    const existingMembers = new Set(currentTrip.members);
+    const remoteMembers = new Set(remoteTrip.members);
+    const allMembers = [...new Set([...existingMembers, ...remoteMembers])];
+    
+    // Συγχωνεύουμε τα expenses
+    const localExpenses = currentTrip.expenses || [];
+    const remoteExpenses = remoteTrip.expenses || [];
+    
+    // Δημιουργούμε Map για να εντοπίσουμε διπλότυπα
+    const expenseMap = new Map();
+    
+    // Πρώτα προσθέτουμε όλα τα local
+    localExpenses.forEach(exp => {
+      expenseMap.set(exp.id, exp);
+    });
+    
+    // Μετά προσθέτουμε/ενημερώνουμε με τα remote
+    remoteExpenses.forEach(exp => {
+      if (!expenseMap.has(exp.id) || 
+          (exp.timestamp > (expenseMap.get(exp.id)?.timestamp || 0))) {
+        expenseMap.set(exp.id, exp);
+      }
+    });
+    
+    // Μετατρέπουμε πίσω σε array
+    const mergedExpenses = Array.from(expenseMap.values())
+      .sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Ενημέρωση του currentTrip
+    currentTrip.expenses = mergedExpenses;
+    currentTrip.members = allMembers;
+    currentTrip.lastUpdate = Math.max(localLastUpdate, remoteLastUpdate);
+    
+    expenses = currentTrip.expenses;
+    
+    // Αποθήκευση
+    saveTripToStorage();
+    
+    // Ενημέρωση UI
+    updateUI();
+    updateTotals();
+    
+    showToast('🔁 Ενημερώθηκαν τα δεδομένα από άλλο μέλος!', 'info');
+  }
+}
+
+function sendTripData(conn) {
+  if (!currentTrip || !conn) return;
+  
+  const syncData = {
+    type: 'trip-data',
+    tripCode: currentTrip.code,
+    trip: currentTrip,
+    lastUpdate: currentTrip.lastUpdate || Date.now(),
+    sender: currentUser,
+    timestamp: Date.now()
+  };
+  
+  try {
+    conn.send(syncData);
+    console.log('📤 Sent trip data to', conn.peer);
+  } catch (error) {
+    console.error('Failed to send data:', error);
+  }
+}
+
+function broadcastToAllPeers(data) {
+  Object.values(connections).forEach(conn => {
+    if (conn.open) {
+      try {
+        conn.send(data);
+      } catch (error) {
+        console.error('Broadcast error to', conn.peer, ':', error);
+      }
+    }
+  });
+}
+
+function requestSyncFromPeers() {
+  if (Object.keys(connections).length === 0) return;
+  
+  const request = {
+    type: 'sync-request',
+    tripCode: currentTrip.code,
+    timestamp: Date.now()
+  };
+  
+  broadcastToAllPeers(request);
+}
+
+// ==================== MAIN FUNCTIONS ====================
+function checkSavedTrip() {
+  const savedTripCode = localStorage.getItem('currentTripCode');
+  const savedUserName = localStorage.getItem('currentUserName');
+  
+  if (savedTripCode && savedUserName) {
+    const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
+    if (allTrips[savedTripCode]) {
+      currentTrip = allTrips[savedTripCode];
+      currentUser = savedUserName;
+      expenses = currentTrip.expenses || [];
+      showApp();
+      updateUI();
+      return;
+    }
+  }
+  
+  setupScreen.style.display = 'block';
+  joinScreen.style.display = 'none';
+  appScreen.style.display = 'none';
+}
+
+function autoJoinTrip(tripCode, userName, tripName) {
+  let allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
+  
+  if (!allTrips[tripCode]) {
+    if (!userName) {
+      userName = prompt("Πώς σας λένε;", "Ταξιδιώτης") || "Ταξιδιώτης";
+    }
+    
+    currentTrip = {
+      code: tripCode,
+      name: tripName,
+      creator: userName,
+      created: new Date().toISOString(),
+      members: [userName],
+      expenses: [],
+      lastUpdate: Date.now()
     };
     
-    // Initialize Firebase
-    let firebaseApp, firebaseDB;
-    let cloudConnected = false;
-    
-    try {
-      firebaseApp = firebase.initializeApp(firebaseConfig);
-      firebaseDB = firebase.database();
-      console.log("✅ Firebase initialized");
-    } catch (error) {
-      console.log("⚠️ Firebase initialization failed, using backup methods");
+    allTrips[tripCode] = currentTrip;
+    localStorage.setItem('allTrips', JSON.stringify(allTrips));
+  } else {
+    currentTrip = allTrips[tripCode];
+    if (!userName) {
+      userName = prompt("Πώς σας λένε;", "Φίλος") || "Φίλος";
     }
     
-    // Global variables
-    let currentTrip = null;
-    let currentUser = null;
-    let expenses = [];
-    let chart = null;
-    let syncMethod = 'cloud'; // cloud, p2p, both
-    let p2pPeer = null;
-    let p2pConnections = new Map();
-    let isP2PHost = false;
-    let syncInterval = null;
-    let cloudSyncRef = null;
-    let liveFeedMessages = [];
-    
-    // Categories
-    const categories = [
-      { name: "Πρωινό", emoji: "🥐" },
-      { name: "Μεσημεριανό", emoji: "🍝" },
-      { name: "Βραδινό", emoji: "🍲" },
-      { name: "Σνακ", emoji: "🍦" },
-      { name: "Δώρα", emoji: "🎁" },
-      { name: "Μέσα Μεταφοράς", emoji: "🚌" },
-      { name: "Αεροπορικά", emoji: "✈️" },
-      { name: "Ενοικίαση Αυτοκινήτου", emoji: "🚗" },
-      { name: "Διαμονή", emoji: "🏨" },
-      { name: "Αξιοθέατα", emoji: "🏛️" }
-    ];
-    
-    // Initialize
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log("🚀 Travel Expense Tracker - Universal Sync");
-      
-      // Setup event listeners
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          switchTab(this.getAttribute('data-tab'));
-        });
-      });
-      
-      // Enter key for expense amount
-      const amountInput = document.getElementById('expenseAmount');
-      if (amountInput) {
-        amountInput.addEventListener('keypress', function(e) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            addQuickExpense();
-          }
-        });
-      }
-      
-      // Check URL for trip code
-      const urlParams = new URLSearchParams(window.location.search);
-      const tripCode = urlParams.get('trip');
-      const userName = urlParams.get('user');
-      
-      if (tripCode) {
-        autoJoinTrip(tripCode, userName);
-      } else {
-        checkSavedTrip();
-      }
-      
-      // Start sync interval
-      startSyncInterval();
-    });
-    
-    // ============================================
-    // CLOUD SYNC SYSTEM (Δουλεύει παντού!)
-    // ============================================
-    
-    // Initialize Cloud Sync
-    function initializeCloudSync() {
-      if (!firebaseDB || !currentTrip) return;
-      
-      try {
-        // Στο Firebase θα αποθηκεύουμε τα δεδομένα κάτω από τον κωδικό ταξιδιού
-        const tripRef = firebaseDB.ref(`trips/${currentTrip.code}`);
-        
-        // Listen για αλλαγές στο ταξίδι
-        tripRef.on('value', (snapshot) => {
-          const tripData = snapshot.val();
-          
-          if (tripData) {
-            console.log("☁️ Λήψη cloud δεδομένων:", tripData);
-            mergeCloudData(tripData);
-            updateSyncStatus('cloud', true);
-          }
-        });
-        
-        // Listen για νέες καταχωρήσεις
-        const expensesRef = firebaseDB.ref(`trips/${currentTrip.code}/expenses`);
-        expensesRef.on('child_added', (snapshot) => {
-          const expense = snapshot.val();
-          if (expense && !expenses.find(e => e.id === expense.id)) {
-            addExternalExpense(expense);
-            addLiveFeedMessage(`Νέα καταχώρηση από ${expense.user}: ${expense.amount}€`);
-          }
-        });
-        
-        // Listen για διαγραφές
-        expensesRef.on('child_removed', (snapshot) => {
-          const expense = snapshot.val();
-          if (expense) {
-            const index = expenses.findIndex(e => e.id === expense.id);
-            if (index !== -1) {
-              expenses.splice(index, 1);
-              updateTotals();
-              addLiveFeedMessage(`Διαγράφηκε καταχώρηση από ${expense.user}`);
-            }
-          }
-        });
-        
-        cloudSyncRef = tripRef;
-        updateSyncStatus('cloud', true);
-        
-        console.log("✅ Cloud sync activated");
-        
-      } catch (error) {
-        console.error("❌ Cloud sync error:", error);
-        updateSyncStatus('cloud', false);
-      }
-    }
-    
-    // Αποστολή δεδομένων στο cloud
-    function updateCloudData() {
-      if (!firebaseDB || !currentTrip || !cloudSyncRef) return;
-      
-      try {
-        // Αποστολή ενημερωμένων δεδομένων
-        cloudSyncRef.set({
-          ...currentTrip,
-          lastUpdated: Date.now(),
-          updatedBy: currentUser
-        });
-        
-        console.log("☁️ Cloud data updated");
-        updateSyncStatus('cloud', true);
-        
-      } catch (error) {
-        console.error("Cloud update error:", error);
-        updateSyncStatus('cloud', false);
-      }
-    }
-    
-    // Συγχώνευση cloud δεδομένων
-    function mergeCloudData(cloudData) {
-      if (!currentTrip || cloudData.code !== currentTrip.code) return;
-      
-      // Μέλη
-      if (cloudData.members) {
-        const newMembers = cloudData.members.filter(m => !currentTrip.members.includes(m));
-        if (newMembers.length > 0) {
-          currentTrip.members.push(...newMembers);
-          updateUI();
-          addLiveFeedMessage(`Νέα μέλη: ${newMembers.join(', ')}`);
-        }
-      }
-      
-      // Εξόδους
-      if (cloudData.expenses) {
-        let newExpenses = 0;
-        cloudData.expenses.forEach(cloudExpense => {
-          if (!expenses.find(e => e.id === cloudExpense.id)) {
-            expenses.push(cloudExpense);
-            newExpenses++;
-          }
-        });
-        
-        if (newExpenses > 0) {
-          currentTrip.expenses = expenses;
-          saveTripData();
-          updateTotals();
-        }
-      }
-      
-      // Άλλες πληροφορίες
-      if (cloudData.name && cloudData.name !== currentTrip.name) {
-        currentTrip.name = cloudData.name;
-        updateUI();
-      }
-    }
-    
-    // ============================================
-    // P2P SYNC SYSTEM (για τοπικό δίκτυο)
-    // ============================================
-    
-    // Initialize P2P
-    function initializeP2P() {
-      if (!currentTrip) return;
-      
-      try {
-        // Stop existing peer
-        if (p2pPeer) {
-          p2pPeer.destroy();
-          p2pConnections.clear();
-        }
-        
-        // Determine if we should be host
-        const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
-        const tripData = allTrips[currentTrip.code];
-        isP2PHost = (tripData && tripData.creator === currentUser) || 
-                    !tripData.p2pHostId;
-        
-        // Create peer
-        const peerId = isP2PHost ? 
-          `host_${currentTrip.code}_${Date.now()}` :
-          `guest_${currentTrip.code}_${Date.now()}`;
-        
-        p2pPeer = new Peer(peerId, {
-          debug: 2,
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-              { urls: 'stun:stun2.l.google.com:19302' }
-            ]
-          }
-        });
-        
-        p2pPeer.on('open', (id) => {
-          console.log(`✅ P2P Peer: ${id} (${isP2PHost ? 'Host' : 'Guest'})`);
-          updateSyncStatus('p2p', true);
-          
-          if (isP2PHost) {
-            // Αποθήκευση host ID
-            currentTrip.p2pHostId = id;
-            saveTripData();
-          } else {
-            // Guest: προσπάθεια σύνδεσης με host
-            attemptP2PHostConnection();
-          }
-        });
-        
-        p2pPeer.on('connection', (conn) => {
-          console.log('🔗 Νέα P2P σύνδεση:', conn.peer);
-          setupP2PConnection(conn);
-          
-          if (isP2PHost) {
-            // Host στέλνει τα δεδομένα
-            setTimeout(() => sendP2PTripData(conn), 500);
-          }
-        });
-        
-        p2pPeer.on('error', (err) => {
-          console.error('P2P error:', err);
-          updateSyncStatus('p2p', false);
-        });
-        
-        p2pPeer.on('disconnected', () => {
-          console.log('P2P disconnected');
-          updateSyncStatus('p2p', false);
-          setTimeout(() => p2pPeer.reconnect(), 3000);
-        });
-        
-      } catch (error) {
-        console.error('P2P initialization failed:', error);
-        updateSyncStatus('p2p', false);
-      }
-    }
-    
-    // Προσπάθεια σύνδεσης με P2P host
-    function attemptP2PHostConnection() {
-      if (!currentTrip || !currentTrip.p2pHostId || !p2pPeer) return;
-      
-      console.log('🔍 Σύνδεση με P2P host:', currentTrip.p2pHostId);
-      
-      try {
-        const conn = p2pPeer.connect(currentTrip.p2pHostId, {
-          reliable: true,
-          serialization: 'json'
-        });
-        
-        setupP2PConnection(conn);
-        
-      } catch (error) {
-        console.error('P2P connection failed:', error);
-      }
-    }
-    
-    // Ρύθμιση P2P σύνδεσης
-    function setupP2PConnection(conn) {
-      conn.on('open', () => {
-        console.log('✅ P2P connection open:', conn.peer);
-        p2pConnections.set(conn.peer, conn);
-        updateConnectedUsers();
-      });
-      
-      conn.on('data', (data) => {
-        console.log('📩 P2P data received:', data.type);
-        handleP2PData(data);
-      });
-      
-      conn.on('close', () => {
-        console.log('🔒 P2P connection closed');
-        p2pConnections.delete(conn.peer);
-        updateConnectedUsers();
-      });
-      
-      conn.on('error', (err) => {
-        console.error('P2P connection error:', err);
-        p2pConnections.delete(conn.peer);
-        updateConnectedUsers();
-      });
-    }
-    
-    // Αποστολή δεδομένων μέσω P2P
-    function sendP2PTripData(conn) {
-      if (!currentTrip || !conn) return;
-      
-      const data = {
-        type: 'TRIP_DATA',
-        trip: currentTrip,
-        sender: currentUser,
-        timestamp: Date.now()
-      };
-      
-      conn.send(data);
-    }
-    
-    // Broadcast μέσω P2P
-    function broadcastP2PData(data) {
-      if (p2pConnections.size === 0) return;
-      
-      p2pConnections.forEach(conn => {
-        try {
-          conn.send(data);
-        } catch (error) {
-          console.error('P2P broadcast error:', error);
-          p2pConnections.delete(conn.peer);
-        }
-      });
-    }
-    
-    // Χειρισμός P2P δεδομένων
-    function handleP2PData(data) {
-      if (!data || !data.type) return;
-      
-      switch(data.type) {
-        case 'TRIP_DATA':
-          mergeP2PData(data.trip);
-          break;
-          
-        case 'NEW_EXPENSE':
-          addExternalExpense(data.expense);
-          addLiveFeedMessage(`P2P: Νέα καταχώρηση από ${data.expense.user}`);
-          break;
-          
-        case 'DELETE_EXPENSE':
-          const index = expenses.findIndex(e => e.id === data.expenseId);
-          if (index !== -1) {
-            expenses.splice(index, 1);
-            updateTotals();
-            addLiveFeedMessage('P2P: Διαγράφηκε καταχώρηση');
-          }
-          break;
-      }
-    }
-    
-    // Συγχώνευση P2P δεδομένων
-    function mergeP2PData(p2pData) {
-      if (!currentTrip || p2pData.code !== currentTrip.code) return;
-      
-      // Συγχώνευση μελών
-      p2pData.members.forEach(member => {
-        if (!currentTrip.members.includes(member)) {
-          currentTrip.members.push(member);
-        }
-      });
-      
-      // Συγχώνευση εξόδων
-      p2pData.expenses.forEach(p2pExpense => {
-        if (!expenses.find(e => e.id === p2pExpense.id)) {
-          expenses.push(p2pExpense);
-        }
-      });
-      
-      saveTripData();
-      updateTotals();
-      updateUI();
-    }
-    
-    // ============================================
-    // ΒΑΣΙΚΕΣ ΣΥΝΑΡΤΗΣΕΙΣ
-    // ============================================
-    
-    // Auto join trip
-    function autoJoinTrip(tripCode, userName) {
-      console.log("🔗 Auto-joining trip:", tripCode);
-      
-      const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
-      
-      if (!allTrips[tripCode]) {
-        // Δημιουργία νέου ταξιδιού
-        if (!userName) {
-          userName = prompt("Πώς σας λένε;", "Ταξιδιώτης") || "Ταξιδιώτης";
-        }
-        
-        const tripName = new URLSearchParams(window.location.search).get('tripname') || `Ταξίδι ${tripCode}`;
-        
-        currentTrip = {
-          code: tripCode,
-          name: tripName,
-          creator: userName,
-          created: new Date().toISOString(),
-          members: [userName],
-          expenses: [],
-          p2pHostId: null,
-          lastCloudUpdate: Date.now()
-        };
-        
-        allTrips[tripCode] = currentTrip;
-        localStorage.setItem('allTrips', JSON.stringify(allTrips));
-      } else {
-        // Υπάρχον ταξίδι
-        currentTrip = allTrips[tripCode];
-        if (!userName) {
-          userName = prompt("Πώς σας λένε;", "Φίλος") || "Φίλος";
-        }
-      }
-      
-      currentUser = userName;
-      expenses = currentTrip.expenses || [];
-      
-      // Προσθήκη στα μέλη
-      if (!currentTrip.members.includes(userName)) {
-        currentTrip.members.push(userName);
-        saveTripData();
-        updateCloudData();
-      }
-      
-      // Αποθήκευση
-      localStorage.setItem('currentTripCode', tripCode);
-      localStorage.setItem('currentUserName', userName);
-      
-      // Εμφάνιση εφαρμογής
-      showApp();
-      
-      showToast(`Καλώς ήρθατε ${userName}!`, 'success');
-    }
-    
-    // Check saved trip
-    function checkSavedTrip() {
-      const savedTripCode = localStorage.getItem('currentTripCode');
-      const savedUserName = localStorage.getItem('currentUserName');
-      
-      if (savedTripCode && savedUserName) {
-        const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
-        if (allTrips[savedTripCode]) {
-          currentTrip = allTrips[savedTripCode];
-          currentUser = savedUserName;
-          expenses = currentTrip.expenses || [];
-          
-          showApp();
-          return;
-        }
-      }
-      
-      setupScreen.style.display = 'block';
-      appScreen.style.display = 'none';
-    }
-    
-    // Show app
-    function showApp() {
-      setupScreen.style.display = 'none';
-      joinScreen.style.display = 'none';
-      appScreen.style.display = 'block';
-      
-      updateUI();
-      renderCategories();
-      updateMembersDropdown();
-      updateTotals();
-      
-      // Start sync systems
-      initializeAllSync();
-    }
-    
-    // Initialize all sync methods
-    function initializeAllSync() {
-      // Cloud sync (πάντα)
-      initializeCloudSync();
-      
-      // P2P sync (αν επιλεγεί)
-      if (syncMethod === 'p2p' || syncMethod === 'both') {
-        initializeP2P();
-      }
-      
-      // Start sync interval
-      startSyncInterval();
-    }
-    
-    // Start sync interval
-    function startSyncInterval() {
-      if (syncInterval) clearInterval(syncInterval);
-      
-      syncInterval = setInterval(() => {
-        // Periodic cloud update
-        if (cloudConnected && currentTrip) {
-          updateCloudData();
-        }
-        
-        // Check P2P connections
-        updateConnectedUsers();
-        
-        // Update UI
-        document.getElementById('lastUpdateTime').textContent = 
-          new Date().toLocaleTimeString('el-GR');
-        
-      }, 10000); // Κάθε 10 δευτερόλεπτα
-    }
-    
-    // Add expense
-    function addQuickExpense() {
-      const amount = parseFloat(document.getElementById('expenseAmount').value);
-      const category = document.getElementById('expenseCategory').value;
-      const user = document.getElementById('expenseUser').value;
-      const note = document.getElementById('expenseNote').value.trim();
-      
-      if (!amount || amount <= 0) {
-        showToast('Εισάγετε έγκυρο ποσό', 'warning');
-        document.getElementById('expenseAmount').focus();
-        return;
-      }
-      
-      const newExpense = {
-        id: Date.now() + Math.random(),
-        amount: amount,
-        category: category,
-        user: user,
-        note: note,
-        date: new Date().toLocaleDateString('el-GR'),
-        timestamp: Date.now(),
-        addedBy: currentUser
-      };
-      
-      // Προσθήκη
-      expenses.push(newExpense);
-      currentTrip.expenses = expenses;
-      saveTripData();
-      updateTotals();
-      
-      // Sync με όλους
-      syncNewExpense(newExpense);
-      
-      // Καθαρισμός
-      document.getElementById('expenseAmount').value = '';
-      document.getElementById('expenseNote').value = '';
-      document.getElementById('expenseAmount').focus();
-      
-      showToast(`Προστέθηκε: ${category} - ${amount.toFixed(2)}€`, 'success');
-      addLiveFeedMessage(`Εσείς προσθέσατε: ${category} - ${amount.toFixed(2)}€`);
-    }
-    
-    // Sync new expense
-    function syncNewExpense(expense) {
-      // Cloud sync
-      if (firebaseDB && currentTrip) {
-        const expenseRef = firebaseDB.ref(`trips/${currentTrip.code}/expenses/${expense.id}`);
-        expenseRef.set(expense);
-      }
-      
-      // P2P sync
-      if (p2pConnections.size > 0) {
-        broadcastP2PData({
-          type: 'NEW_EXPENSE',
-          expense: expense,
-          sender: currentUser,
-          timestamp: Date.now()
-        });
-      }
-    }
-    
-    // Delete expense
-    function deleteExpense(index) {
-      if (!confirm('Θέλετε να διαγράψετε αυτή την καταχώρηση;')) return;
-      
-      const expense = expenses[index];
-      expenses.splice(index, 1);
-      currentTrip.expenses = expenses;
-      saveTripData();
-      updateTotals();
-      
-      // Sync deletion
-      if (firebaseDB && currentTrip) {
-        const expenseRef = firebaseDB.ref(`trips/${currentTrip.code}/expenses/${expense.id}`);
-        expenseRef.remove();
-      }
-      
-      if (p2pConnections.size > 0) {
-        broadcastP2PData({
-          type: 'DELETE_EXPENSE',
-          expenseId: expense.id,
-          sender: currentUser,
-          timestamp: Date.now()
-        });
-      }
-      
-      showToast('Διαγράφηκε η καταχώρηση', 'success');
-      addLiveFeedMessage('Διαγράψατε μια καταχώρηση');
-    }
-    
-    // Add external expense
-    function addExternalExpense(expense) {
-      if (!expense) return;
-      
-      const exists = expenses.find(e => e.id === expense.id);
-      if (!exists) {
-        expenses.push(expense);
-        currentTrip.expenses = expenses;
-        saveTripData();
-        updateTotals();
-      }
-    }
-    
-    // Save trip data
-    function saveTripData() {
-      if (!currentTrip) return;
-      
-      const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
-      allTrips[currentTrip.code] = currentTrip;
+    if (!currentTrip.members.includes(userName)) {
+      currentTrip.members.push(userName);
+      allTrips[tripCode] = currentTrip;
       localStorage.setItem('allTrips', JSON.stringify(allTrips));
-      localStorage.setItem('currentTripCode', currentTrip.code);
-      localStorage.setItem('currentUserName', currentUser);
     }
-    
-    // Update UI
-    function updateUI() {
-      if (!currentTrip) return;
-      
-      document.getElementById('currentTripTitle').textContent = currentTrip.name;
-      document.getElementById('tripTagline').textContent = `Κωδικός: ${currentTrip.code}`;
-      document.getElementById('tripCodeDisplay').value = currentTrip.code;
-      document.getElementById('settingsTripCode').textContent = currentTrip.code;
-      document.getElementById('settingsTripCreator').textContent = currentTrip.creator;
-      document.getElementById('settingsTripDate').textContent = new Date(currentTrip.created).toLocaleDateString('el-GR');
-      document.getElementById('settingsTripMembers').textContent = currentTrip.members.length;
-      
-      // Μέλη
-      const membersContainer = document.getElementById('currentMembers');
-      membersContainer.innerHTML = currentTrip.members.map(member => `
-        <div class="member-badge">
-          ${member} ${member === currentUser ? '(Εσείς)' : ''}
-        </div>
-      `).join('');
-      
-      document.getElementById('membersCount').textContent = currentTrip.members.length;
-      document.getElementById('activeUsers').textContent = currentTrip.members.length;
-      document.getElementById('activeUsersCount').textContent = currentTrip.members.length;
-      document.getElementById('expensesCount').textContent = expenses.length;
-      
-      // Share link
-      const shareLink = `${window.location.origin}${window.location.pathname}?trip=${currentTrip.code}&user=${encodeURIComponent(currentUser)}`;
-      document.getElementById('shareLink').value = shareLink;
-      
-      // Connected users
-      updateConnectedUsers();
-    }
-    
-    // Update totals
-    function updateTotals() {
-      if (!currentTrip) return;
-      
-      const tripTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
-      document.getElementById('tripTotal').textContent = tripTotal.toFixed(2) + ' €';
-      
-      const today = new Date().toLocaleDateString('el-GR');
-      const todayTotal = expenses
-        .filter(e => e.date === today)
-        .reduce((sum, e) => sum + e.amount, 0);
-      document.getElementById('todayTotal').textContent = todayTotal.toFixed(2) + ' €';
-      
-      document.getElementById('categoryCount').textContent = new Set(expenses.map(e => e.category)).size;
-      
-      // Εμφάνιση καταχωρήσεων
-      const allExpensesDiv = document.getElementById('allExpenses');
-      if (expenses.length === 0) {
-        allExpensesDiv.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>Δεν υπάρχουν καταχωρήσεις</p></div>';
-      } else {
-        allExpensesDiv.innerHTML = expenses.slice().reverse().map((expense, i) => {
-          const originalIndex = expenses.length - 1 - i;
-          return `
-            <div class='expense-item'>
-              <div class='expense-info'>
-                <div class='expense-label'>${expense.category} - ${expense.amount.toFixed(2)} €</div>
-                <div class='expense-meta'>
-                  <span><i class="far fa-calendar"></i> ${expense.date}</span>
-                  <span class="expense-user"><i class="fas fa-user"></i> ${expense.user}</span>
-                  ${expense.note ? `<span><i class="far fa-comment"></i> ${expense.note}</span>` : ''}
-                </div>
-              </div>
-              <div class='expense-actions'>
-                <button class='btn btn-danger btn-sm' onclick='deleteExpense(${originalIndex})'>
-                  <i class="fas fa-trash"></i>
-                </button>
+  }
+  
+  currentUser = userName;
+  expenses = currentTrip.expenses || [];
+  
+  localStorage.setItem('currentTripCode', tripCode);
+  localStorage.setItem('currentUserName', userName);
+  
+  // Generate unique Peer ID based on trip code and user
+  if (peer) {
+    const uniqueId = tripCode.toLowerCase() + '_' + userName.toLowerCase().replace(/\s+/g, '');
+    peer.id = uniqueId;
+    myPeerId = uniqueId;
+  }
+  
+  showApp();
+  updateUI();
+  
+  showToast(`Καλώς ήρθατε ${userName} στο "${currentTrip.name}"`, 'success');
+  
+  // Start peer discovery for this trip
+  setTimeout(discoverPeers, 2000);
+}
+
+function createNewTrip() {
+  const tripName = document.getElementById('setupTripName').value.trim();
+  const userName = document.getElementById('setupUserName').value.trim();
+  
+  if (!tripName || !userName) {
+    showToast('Συμπληρώστε όνομα ταξιδιού και το όνομά σας', 'warning');
+    return;
+  }
+  
+  const tripCode = generateTripCode();
+  const joinUrl = `${window.location.origin}${window.location.pathname}?trip=${tripCode}&user=${encodeURIComponent(userName)}&tripname=${encodeURIComponent(tripName)}`;
+  window.location.href = joinUrl;
+}
+
+function joinExistingTrip() {
+  const tripCode = document.getElementById('joinTripCode').value.trim().toUpperCase();
+  const userName = document.getElementById('joinUserName').value.trim();
+  
+  if (!tripCode || tripCode.length !== 6) {
+    showToast('Εισάγετε έγκυρο 6ψήφιο κωδικό', 'warning');
+    return;
+  }
+  
+  if (!userName) {
+    showToast('Εισάγετε το όνομά σας', 'warning');
+    return;
+  }
+  
+  const joinUrl = `${window.location.origin}${window.location.pathname}?trip=${tripCode}&user=${encodeURIComponent(userName)}`;
+  window.location.href = joinUrl;
+}
+
+function showApp() {
+  setupScreen.style.display = 'none';
+  joinScreen.style.display = 'none';
+  appScreen.style.display = 'block';
+  updateMembersDropdown();
+  updateTotals();
+  
+  // Show P2P status
+  const p2pStatus = document.getElementById('p2pStatus');
+  if (p2pStatus) p2pStatus.style.display = 'flex';
+}
+
+function updateUI() {
+  if (!currentTrip) return;
+  
+  document.getElementById('currentTripTitle').textContent = currentTrip.name;
+  document.getElementById('tripTagline').textContent = `Κωδικός: ${currentTrip.code}`;
+  document.getElementById('tripCodeDisplay').value = currentTrip.code;
+  
+  // Μέλη
+  const membersContainer = document.getElementById('currentMembers');
+  membersContainer.innerHTML = currentTrip.members.map(member => `
+    <div class="member-badge">
+      ${member} ${member === currentUser ? '(Εσείς)' : ''}
+    </div>
+  `).join('');
+  
+  document.getElementById('membersCount').textContent = currentTrip.members.length;
+}
+
+function updateMembersDropdown() {
+  const expenseUserSelect = document.getElementById('expenseUser');
+  if (!currentTrip || !currentTrip.members) return;
+  
+  expenseUserSelect.innerHTML = currentTrip.members.map(member => 
+    `<option value="${member}" ${member === currentUser ? 'selected' : ''}>${member} ${member === currentUser ? '(Εσείς)' : ''}</option>`
+  ).join('');
+}
+
+// ΠΡΟΣΘΗΚΗ ΕΞΟΔΟΥ - ΑΠΛΗ ΣΥΝΑΡΤΗΣΗ
+function addQuickExpense() {
+  const amount = parseFloat(document.getElementById('expenseAmount').value);
+  const category = document.getElementById('expenseCategory').value;
+  const user = document.getElementById('expenseUser').value;
+  const note = document.getElementById('expenseNote').value.trim();
+  
+  if (!amount || amount <= 0) {
+    showToast('Εισάγετε έγκυρο ποσό', 'warning');
+    document.getElementById('expenseAmount').focus();
+    return;
+  }
+  
+  if (!category) {
+    showToast('Επιλέξτε κατηγορία', 'warning');
+    return;
+  }
+  
+  const newExpense = {
+    id: Date.now() + Math.random(),
+    amount: amount,
+    category: category,
+    user: user,
+    note: note || '',
+    date: new Date().toLocaleDateString('el-GR'),
+    timestamp: Date.now()
+  };
+  
+  expenses.push(newExpense);
+  currentTrip.expenses = expenses;
+  currentTrip.lastUpdate = Date.now();
+  
+  saveTripToStorage();
+  updateTotals();
+  
+  // ΚΑΙΝΟΥΡΓΙΟ: Συγχρονισμός με άλλα κινητά!
+  broadcastExpenseUpdate(newExpense);
+  
+  // Καθαρισμός φόρμας
+  document.getElementById('expenseAmount').value = '';
+  document.getElementById('expenseNote').value = '';
+  document.getElementById('expenseAmount').focus();
+  
+  showToast(`✅ Προστέθηκε ${category} - ${amount.toFixed(2)}€`, 'success');
+}
+
+function broadcastExpenseUpdate(expense) {
+  if (Object.keys(connections).length === 0) return;
+  
+  const updateData = {
+    type: 'expense-update',
+    tripCode: currentTrip.code,
+    expense: expense,
+    timestamp: Date.now(),
+    sender: currentUser
+  };
+  
+  broadcastToAllPeers(updateData);
+}
+
+function saveTripToStorage() {
+  if (!currentTrip) return;
+  
+  const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
+  allTrips[currentTrip.code] = currentTrip;
+  localStorage.setItem('allTrips', JSON.stringify(allTrips));
+  localStorage.setItem('currentTripCode', currentTrip.code);
+  localStorage.setItem('currentUserName', currentUser);
+}
+
+function updateTotals() {
+  if (!currentTrip) return;
+  
+  // Σύνολο ταξιδιού
+  const tripTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
+  document.getElementById('tripTotal').textContent = tripTotal.toFixed(2) + ' €';
+  
+  // Σημερινές δαπάνες
+  const today = new Date().toLocaleDateString('el-GR');
+  const todayTotal = expenses
+    .filter(e => e.date === today)
+    .reduce((sum, e) => sum + e.amount, 0);
+  document.getElementById('todayTotal').textContent = todayTotal.toFixed(2) + ' €';
+  
+  // Όλες οι καταχωρήσεις
+  document.getElementById('allExpenses').innerHTML = expenses.length > 0 
+    ? expenses.slice().reverse().map((expense, i) => {
+        const originalIndex = expenses.length - 1 - i;
+        return `
+          <div class='expense-item'>
+            <div class='expense-info'>
+              <div class='expense-label'>${expense.category} - ${expense.amount.toFixed(2)} €</div>
+              <div class='expense-meta'>
+                <span><i class="far fa-calendar"></i> ${expense.date}</span>
+                <span class="expense-user"><i class="fas fa-user"></i> ${expense.user} ${expense.user === currentUser ? '(Εσείς)' : ''}</span>
+                ${expense.note ? `<span><i class="far fa-comment"></i> ${expense.note}</span>` : ''}
               </div>
             </div>
-          `;
-        }).join('');
-      }
-      
-      // Ενημέρωση chart
-      updateChart();
-    }
-    
-    // Update chart
-    function updateChart() {
-      const ctx = document.getElementById('categoryChart').getContext('2d');
-      
-      const categoryData = {};
-      expenses.forEach(e => {
-        categoryData[e.category] = (categoryData[e.category] || 0) + e.amount;
-      });
-      
-      const labels = Object.keys(categoryData);
-      const data = Object.values(categoryData);
-      
-      if (chart) chart.destroy();
-      
-      if (labels.length === 0) {
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        return;
-      }
-      
-      chart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: data,
-            backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1'],
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false
-        }
-      });
-    }
-    
-    // Update sync status
-    function updateSyncStatus(type, connected) {
-      const badge = document.getElementById(`${type}Status`);
-      const text = document.getElementById(`${type}StatusText`);
-      
-      if (badge) {
-        badge.className = connected ? 'sync-status-badge sync-online' : 'sync-status-badge sync-offline';
-      }
-      
-      if (text) {
-        text.textContent = connected ? 'Συνδεδεμένο' : 'Offline';
-        text.style.color = connected ? '#10b981' : '#ef4444';
-      }
-      
-      if (type === 'cloud') {
-        cloudConnected = connected;
-      }
-    }
-    
-    // Update connected users
-    function updateConnectedUsers() {
-      const totalConnections = p2pConnections.size + (cloudConnected ? currentTrip.members.length - 1 : 0);
-      const totalUsers = Math.max(currentTrip.members.length, totalConnections + 1);
-      
-      document.getElementById('activeUsers').textContent = totalUsers;
-      document.getElementById('activeUsersCount').textContent = totalUsers;
-      document.getElementById('usersCountBadge').innerHTML = `<i class="fas fa-users"></i> ${totalUsers}`;
-    }
-    
-    // Add live feed message
-    function addLiveFeedMessage(message) {
-      if (!message) return;
-      
-      liveFeedMessages.unshift({
-        message: message,
-        time: new Date().toLocaleTimeString('el-GR'),
-        id: Date.now()
-      });
-      
-      // Κρατάμε μόνο τα τελευταία 10
-      if (liveFeedMessages.length > 10) {
-        liveFeedMessages.pop();
-      }
-      
-      // Ενημέρωση UI
-      updateLiveFeed();
-    }
-    
-    // Update live feed
-    function updateLiveFeed() {
-      const liveFeed = document.getElementById('liveFeed');
-      const liveFeedCard = document.getElementById('liveFeedCard');
-      
-      if (liveFeedMessages.length === 0) {
-        liveFeedCard.style.display = 'none';
-        return;
-      }
-      
-      liveFeedCard.style.display = 'block';
-      liveFeed.innerHTML = liveFeedMessages.map(msg => `
-        <div style="padding: 8px; margin-bottom: 5px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #3b82f6;">
-          <div style="font-size: 0.85rem; color: var(--gray);">${msg.time}</div>
-          <div>${msg.message}</div>
+            <div class='expense-actions'>
+              <button class='btn btn-danger btn-sm' onclick='deleteExpense(${originalIndex})'><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('')
+    : '<div class="empty-state"><i class="fas fa-receipt"></i><p>Δεν υπάρχουν καταχωρήσεις ακόμα</p></div>';
+  
+  // Σύνοψη ανά μέλος
+  const byUser = {};
+  expenses.forEach(e => {
+    if (!byUser[e.user]) byUser[e.user] = 0;
+    byUser[e.user] += e.amount;
+  });
+
+  document.getElementById('userSummary').innerHTML = Object.entries(byUser).length > 0
+    ? Object.entries(byUser).map(([userName, total]) => `
+        <div class="expense-item" style="margin-bottom: 8px;">
+          <div class="expense-info">
+            <div class="expense-label">${userName} ${userName === currentUser ? '(Εσείς)' : ''}</div>
+          </div>
+          <div class="expense-amount">${total.toFixed(2)} €</div>
         </div>
-      `).join('');
-    }
-    
-    // ============================================
-    // UI FUNCTIONS
-    // ============================================
-    
-    // Create new trip
-    function createNewTrip() {
-      const tripName = document.getElementById('setupTripName').value.trim();
-      const userName = document.getElementById('setupUserName').value.trim();
-      
-      if (!tripName || !userName) {
-        showToast('Συμπληρώστε όλα τα πεδία', 'warning');
-        return;
-      }
-      
-      const tripCode = generateTripCode();
-      const joinUrl = `${window.location.origin}${window.location.pathname}?trip=${tripCode}&user=${encodeURIComponent(userName)}&tripname=${encodeURIComponent(tripName)}`;
-      window.location.href = joinUrl;
-    }
-    
-    // Join existing trip
-    function joinExistingTrip() {
-      const tripCode = document.getElementById('joinTripCode').value.trim().toUpperCase();
-      const userName = document.getElementById('joinUserName').value.trim();
-      
-      if (!tripCode || tripCode.length !== 6) {
-        showToast('Εισάγετε έγκυρο 6ψήφιο κωδικό', 'warning');
-        return;
-      }
-      
-      if (!userName) {
-        showToast('Εισάγετε το όνομά σας', 'warning');
-        return;
-      }
-      
-      const joinUrl = `${window.location.origin}${window.location.pathname}?trip=${tripCode}&user=${encodeURIComponent(userName)}`;
-      window.location.href = joinUrl;
-    }
-    
-    // Set sync method
-    function setSyncMethod(method) {
-      syncMethod = method;
-      
-      // Update UI
-      document.querySelectorAll('.sync-option').forEach(opt => opt.classList.remove('active'));
-      event.currentTarget.classList.add('active');
-      
-      // Reinitialize sync
-      initializeAllSync();
-      
-      showToast(`Συγχρονισμός: ${method === 'cloud' ? 'Cloud' : method === 'p2p' ? 'P2P' : 'Και τα δύο'}`, 'info');
-    }
-    
-    // Force sync all
-    function forceSyncAll() {
-      showToast('Εξαναγκασμός συγχρονισμού...', 'info');
-      
-      // Cloud sync
-      if (firebaseDB && currentTrip) {
-        updateCloudData();
-      }
-      
-      // P2P sync
-      if (p2pConnections.size > 0) {
-        broadcastP2PData({
-          type: 'TRIP_DATA',
-          trip: currentTrip,
-          sender: currentUser,
-          timestamp: Date.now(),
-          force: true
-        });
-      }
-      
-      // Manual sync από localStorage
-      manualSync();
-      
-      addLiveFeedMessage('Εξαναγκασμός συγχρονισμού');
-    }
-    
-    // Manual sync
-    function manualSync() {
-      const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
-      if (allTrips[currentTrip.code]) {
-        const savedTrip = allTrips[currentTrip.code];
-        mergeCloudData(savedTrip);
-        showToast('Ενημερώθηκαν τα δεδομένα', 'success');
-      }
-    }
-    
-    // Test all connections
-    function testAllConnections() {
-      let message = `🔍 Δοκιμή Συνδέσεων:\n\n`;
-      message += `🌐 Δίκτυο: ${navigator.onLine ? 'Online ✅' : 'Offline ❌'}\n`;
-      message += `☁️ Cloud: ${cloudConnected ? 'Συνδεδεμένο ✅' : 'Offline ❌'}\n`;
-      message += `🤝 P2P: ${p2pConnections.size} συνδέσεις\n`;
-      message += `👥 Χρήστες: ${currentTrip.members.length}\n`;
-      message += `📊 Καταχωρήσεις: ${expenses.length}\n`;
-      message += `🆔 Κωδικός: ${currentTrip.code}\n`;
-      message += `👤 Εσείς: ${currentUser}`;
-      
-      alert(message);
-    }
-    
-    // Generate trip code
-    function generateTripCode() {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let code = '';
-      for (let i = 0; i < 6; i++) {
-        code += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      return code;
-    }
-    
-    // Show toast
-    function showToast(message, type = 'success') {
-      const toast = document.getElementById('toast');
-      const toastMessage = document.getElementById('toastMessage');
-      
-      toastMessage.textContent = message;
-      toast.style.backgroundColor = 
-        type === 'warning' ? '#f59e0b' :
-        type === 'danger' ? '#ef4444' :
-        type === 'info' ? '#06b6d4' : '#10b981';
-      
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
-    }
-    
-    // Tab switching
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      
-      document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-      document.getElementById(tabName).classList.add('active');
-      
-      if (tabName === 'summary') {
-        setTimeout(updateChart, 100);
+      `).join('')
+    : '<div class="empty-state"><i class="fas fa-user-friends"></i><p>Δεν υπάρχουν καταχωρήσεις ακόμα</p></div>';
+  
+  // Κατηγορίες
+  document.getElementById('categoryCount').textContent = new Set(expenses.map(e => e.category)).size;
+  
+  updateChart();
+}
+
+function deleteExpense(index) {
+  if (!confirm('Θέλετε να διαγράψετε αυτή την καταχώρηση;')) return;
+  
+  const expense = expenses[index];
+  expenses.splice(index, 1);
+  currentTrip.expenses = expenses;
+  currentTrip.lastUpdate = Date.now();
+  
+  saveTripToStorage();
+  updateTotals();
+  
+  // Broadcast deletion
+  broadcastDeleteExpense(expense.id);
+  
+  showToast(`Διαγράφηκε έξοδο ${expense.category}`, 'danger');
+}
+
+function broadcastDeleteExpense(expenseId) {
+  if (Object.keys(connections).length === 0) return;
+  
+  const deleteData = {
+    type: 'expense-delete',
+    tripCode: currentTrip.code,
+    expenseId: expenseId,
+    timestamp: Date.now(),
+    sender: currentUser
+  };
+  
+  broadcastToAllPeers(deleteData);
+}
+
+function renderCategories() {
+  const container = document.getElementById('category-buttons');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  categories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'category-btn';
+    btn.innerHTML = `
+      <span class="emoji">${cat.emoji}</span>
+      <span>${cat.name}</span>
+    `;
+    btn.onclick = () => {
+      document.getElementById('expenseCategory').value = cat.name;
+      document.getElementById('expenseAmount').focus();
+    };
+    container.appendChild(btn);
+  });
+}
+
+function updateChart() {
+  const ctx = document.getElementById('categoryChart')?.getContext('2d');
+  if (!ctx) return;
+  
+  const categoryData = {};
+  expenses.forEach(e => {
+    if (!categoryData[e.category]) categoryData[e.category] = 0;
+    categoryData[e.category] += e.amount;
+  });
+  
+  const labels = Object.keys(categoryData);
+  const data = Object.values(categoryData);
+  
+  if (chart) chart.destroy();
+  
+  if (labels.length === 0) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    return;
+  }
+  
+  chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: labels.map(label => {
+          const cat = categories.find(c => c.name === label);
+          return cat ? cat.color : '#3b82f6';
+        })
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom' }
       }
     }
+  });
+}
+
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabIndex = {
+    'tracker': 0,
+    'summary': 1,
+    'expenses': 2,
+    'trips': 3
+  };
+  
+  if (tabIndex[tabName] !== undefined) {
+    tabButtons[tabIndex[tabName]].classList.add('active');
+  }
+  
+  document.getElementById(tabName).classList.add('active');
+  
+  if (tabName === 'trips') {
+    loadMyTrips();
+  }
+  
+  if (tabName === 'summary') {
+    setTimeout(updateChart, 100);
+  }
+}
+
+function loadMyTrips() {
+  const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
+  const tripsList = document.getElementById('myTripsList');
+  if (!tripsList) return;
+  
+  const tripCodes = Object.keys(allTrips);
+  
+  if (tripCodes.length === 0) {
+    tripsList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-suitcase"></i>
+        <p>Δεν βρέθηκαν αποθηκευμένα ταξίδια</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const sortedTrips = tripCodes.map(code => allTrips[code])
+    .sort((a, b) => new Date(b.created) - new Date(a.created));
+  
+  let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+  
+  sortedTrips.forEach(trip => {
+    const expenseCount = trip.expenses?.length || 0;
+    const totalAmount = trip.expenses?.reduce((sum, e) => sum + e.amount, 0) || 0;
+    const isCurrent = currentTrip && trip.code === currentTrip.code;
     
-    // Render categories
-    function renderCategories() {
-      const container = document.getElementById('category-buttons');
-      
-      container.innerHTML = categories.map(cat => `
-        <button class="category-btn" onclick="document.getElementById('expenseCategory').value='${cat.name}'; document.getElementById('expenseAmount').focus();">
-          <span class="emoji">${cat.emoji}</span>
-          <span>${cat.name}</span>
-        </button>
-      `).join('');
-    }
-    
-    // Update members dropdown
-    function updateMembersDropdown() {
-      const select = document.getElementById('expenseUser');
-      if (!currentTrip || !select) return;
-      
-      select.innerHTML = currentTrip.members.map(member => 
-        `<option value="${member}" ${member === currentUser ? 'selected' : ''}>${member} ${member === currentUser ? '(Εσείς)' : ''}</option>`
-      ).join('');
-    }
-    
-    // Screen switching
-    function showJoinScreen() {
-      setupScreen.style.display = 'none';
-      joinScreen.style.display = 'block';
-      appScreen.style.display = 'none';
-    }
-    
-    function showSetupScreen() {
-      setupScreen.style.display = 'block';
-      joinScreen.style.display = 'none';
-      appScreen.style.display = 'none';
-    }
-    
-    // Modal functions
-    function showShareModal() {
-      document.getElementById('shareModal').style.display = 'flex';
-    }
-    
-    function closeShareModal() {
-      document.getElementById('shareModal').style.display = 'none';
-      document.getElementById('qrContainer').style.display = 'none';
-    }
-    
-    function showNewTripModal() {
-      // Simple implementation
-      if (confirm('Θέλετε να δημιουργήσετε νέο ταξίδι; Θα αποσυνδεθείτε από το τρέχον.')) {
-        localStorage.clear();
-        location.reload();
-      }
-    }
-    
-    // Copy functions
-    function copyTripCode() {
-      const tripCode = document.getElementById('tripCodeDisplay').value;
-      navigator.clipboard.writeText(tripCode)
-        .then(() => showToast('Ο κωδικός αντιγράφηκε!', 'success'))
-        .catch(() => showToast('Αποτυχία αντιγραφής', 'danger'));
-    }
-    
-    function copyShareLink() {
-      const shareLink = document.getElementById('shareLink').value;
-      navigator.clipboard.writeText(shareLink)
-        .then(() => showToast('Ο σύνδεσμος αντιγράφηκε!', 'success'))
-        .catch(() => showToast('Αποτυχία αντιγραφής', 'danger'));
-    }
-    
-    // Generate QR code
-    function generateQRCode() {
-      const shareLink = document.getElementById('shareLink').value;
-      const qrContainer = document.getElementById('qrContainer');
-      
-      qrContainer.style.display = 'block';
-      qrContainer.innerHTML = `
-        <canvas id="qrCanvas"></canvas>
-        <p style="margin-top: 10px; font-size: 0.9rem; color: var(--gray);">
-          Σκανάρετε με το κινητό σας
-        </p>
-      `;
-      
-      // Simple QR code implementation
-      const canvas = document.getElementById('qrCanvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = 200;
-      canvas.height = 200;
-      
-      // Clear canvas
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, 200, 200);
-      
-      // Simple text display
-      ctx.fillStyle = 'black';
-      ctx.font = 'bold 20px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('SCAN ME', 100, 100);
-      ctx.font = '12px Arial';
-      ctx.fillText(currentTrip.code, 100, 120);
-      
-      showToast('QR Code δημιουργήθηκε', 'success');
-    }
-    
-    // Close modal on outside click
-    window.addEventListener('click', function(event) {
-      if (event.target.id === 'shareModal') {
-        closeShareModal();
-      }
-    });
-    
-    // Online/offline detection
-    window.addEventListener('online', () => {
-      showToast('Επασυνδέθηκε στο δίκτυο', 'success');
-      initializeAllSync();
-    });
-    
-    window.addEventListener('offline', () => {
-      showToast('Αποσυνδέθηκε από το δίκτυο', 'warning');
-      updateSyncStatus('cloud', false);
-      updateSyncStatus('p2p', false);
-    });
-  </script>
+    html += `
+      <div class="card" onclick="switchToTrip('${trip.code}')" style="cursor: pointer; ${isCurrent ? 'border: 2px solid #3b82f6;' : ''}">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h3 style="margin: 0; color: var(--dark);">
+              ${trip.name} ${isCurrent ? '<span style="color: #3b82f6;">(Τρέχον)</span>' : ''}
+            </h3>
+            <div style="display: flex; gap: 12px; margin-top: 8px; font-size: 0.9rem; color: var(--gray);">
+              <span><i class="fas fa-hashtag"></i> ${trip.code}</span>
+              <span><i class="fas fa-users"></i> ${trip.members?.length || 0} μέλη</span>
+              <span><i class="fas fa-receipt"></i> ${expenseCount} καταχωρήσεις</span>
+              <span><i class="fas fa-coins"></i> ${totalAmount.toFixed(2)} €</span>
+            </div>
+          </div>
+          <button class="btn btn-sm ${isCurrent ? 'btn-primary' : 'btn-secondary'}" 
+                  onclick="event.stopPropagation(); switchToTrip('${trip.code}')">
+            <i class="fas fa-sign-in-alt"></i> ${isCurrent ? 'Ανοικτό' : 'Άνοιγμα'}
+          </button>
+        </div>
+      </div>
+    `;
+  });
+  
+  html += '</div>';
+  tripsList.innerHTML = html;
+}
+
+function switchToTrip(tripCode) {
+  const allTrips = JSON.parse(localStorage.getItem('allTrips') || '{}');
+  if (!allTrips[tripCode]) {
+    showToast('Το ταξίδι δεν βρέθηκε', 'danger');
+    return;
+  }
+  
+  currentTrip = allTrips[tripCode];
+  currentUser = localStorage.getItem('currentUserName') || 'Ταξιδιώτης';
+  expenses = currentTrip.expenses || [];
+  localStorage.setItem('currentTripCode', tripCode);
+  updateUI();
+  updateTotals();
+  switchTab('tracker');
+  
+  // Re-initialize PeerJS for new trip
+  if (peer) {
+    const uniqueId = tripCode.toLowerCase() + '_' + currentUser.toLowerCase().replace(/\s+/g, '');
+    peer.id = uniqueId;
+    myPeerId = uniqueId;
+    setTimeout(discoverPeers, 1000);
+  }
+  
+  showToast(`Επιστρέψατε στο ταξίδι "${currentTrip.name}"`, 'success');
+}
+
+function showJoinScreen() {
+  setupScreen.style.display = 'none';
+  joinScreen.style.display = 'block';
+  appScreen.style.display = 'none';
+}
+
+function showSetupScreen() {
+  setupScreen.style.display = 'block';
+  joinScreen.style.display = 'none';
+  appScreen.style.display = 'none';
+}
+
+function showShareModal() {
+  document.getElementById('shareModal').style.display = 'flex';
+}
+
+function closeShareModal() {
+  document.getElementById('shareModal').style.display = 'none';
+}
+
+function showNewTripModal() {
+  document.getElementById('newTripModal').style.display = 'flex';
+}
+
+function closeNewTripModal() {
+  document.getElementById('newTripModal').style.display = 'none';
+}
+
+function createBrandNewTrip() {
+  closeNewTripModal();
+  if (confirm('Θέλετε να δημιουργήσετε νέο ταξίδι;')) {
+    localStorage.clear();
+    location.reload();
+  }
+}
+
+function switchToAnotherTrip() {
+  closeNewTripModal();
+  showJoinScreen();
+}
+
+function resetCurrentTrip() {
+  closeNewTripModal();
+  if (confirm('Θέλετε να διαγράψετε όλες τις καταχωρήσεις;')) {
+    currentTrip.expenses = [];
+    expenses = [];
+    saveTripToStorage();
+    updateTotals();
+    showToast('Το ταξίδι επαναφέρθηκε', 'success');
+  }
+}
+
+function manualSync() {
+  showToast('Ψάχνω για άλλα κινητά...', 'info');
+  discoverPeers();
+  requestSyncFromPeers();
+}
+
+function forceSync() {
+  showToast('Εξαναγκασμός συγχρονισμού...', 'info');
+  discoverPeers();
+  setTimeout(() => {
+    requestSyncFromPeers();
+    showToast('Συγχρονισμός σε εξέλιξη...', 'info');
+  }, 1000);
+}
+
+function generateTripCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('toast');
+  const toastMessage = document.getElementById('toastMessage');
+  
+  toastMessage.textContent = message;
+  
+  if (type === 'warning') toast.style.backgroundColor = '#f59e0b';
+  else if (type === 'danger') toast.style.backgroundColor = '#ef4444';
+  else if (type === 'info') toast.style.backgroundColor = '#06b6d4';
+  else toast.style.backgroundColor = '#10b981';
+  
+  toast.classList.add('show');
+  
+  setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3000);
+}
+</script>
+</body>
+</html>
 </body>
 </html>
